@@ -1,0 +1,46 @@
+% !TeX root = softtarget_tr.tex
+% ================================================================
+
+% ================================================================
+\section{Curvy PI\(^2\)}\label{softtargettr_curvy-pi}
+
+A Proportional Integral (PI) controller alters the congestion signalling probability dependent on both the distance from the target delay (the error) and the rate of change of the queuing delay. Therefore, it is able to rapidly control load excursions before they cause too much variation in load. Specifically, it uses an control equation of the form:
+\begin{equation*}
+	p^\prime(t) = p^\prime(t-T) + \alpha\big(q(t)-Q_0\big) + \beta\big(q(t)-q(t-T)\big),\label{eqn:pi}
+\end{equation*}
+where \(p^\prime(t)\) is the drop probability at time \(t\), \(q(t)\) is the queuing delay at time \(t\),  \(\alpha\) and \(\beta\) are the gain constants, \(T\) is the sampling period and \(Q_0\) is the (constant) target delay.
+
+It would be straightforward to make the target delay a function \(Q()\) of the current drop probability \(p(t-T)\) rather than a constant, for instance, picking a reasonable formula fairly arbitrarily, one might use:
+\begin{equation}
+	Q(p^\prime) = Q_0 + Q_1 p^\prime(t-T),\label{eqn:softtarget-base}
+\end{equation}
+where \(Q_0\) and \(Q_1\) are the min and max values of the soft delay target (at \(p^\prime = 0\) and \(p^\prime = 1\)).
+
+The PI\(^2\) controller squares the resulting value of \(p^\prime(t)\) to determine the drop probability \(p = (p^\prime)^2\) (see \cite{DeSchepper16a:PI2} for why). Therefore \autoref{eqn:softtarget} is equivalent to:
+\begin{equation}
+	Q(p) = Q_0 + Q_1 \sqrt{p(t-T)}.\label{eqn:softtarget}
+\end{equation}
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\columnwidth]{softtarget-base}\\
+	\includegraphics[width=\columnwidth]{softtarget}	
+	\caption{Soft delay target as a function of \(p^\prime\) \& \(p\)}\label{fig:softtarget}
+\end{figure}
+
+Equations \ref{eqn:softtarget-base} and \ref{eqn:softtarget} are illustrated in \autoref{fig:softtarget}
+
+In practice, rather than using the arbitrary formula in \autoref{eqn:softtarget-base}, it will be possible to determine the optimum compromise between queueing delay and loss from human factors experiments that record the mean opinion score of a 2-D matrix of these two impairments for the popular application that is most sensitive to both, e.g. voice, or perhaps virtual reality (although MOS data is more readily available for voice). Then it should be possible to fit an approximate curve to the contour of optimum pairs that will be amenable to implementation as the soft delay target function.
+
+It might seem of concern that the loss probability depends on a delay target function, which in turn depends on the loss probability, which seems like a circular dependency. However, the target function depends on the loss probability that was output in the previous sampling period (and the second dependency will be much weaker than the first anyway).
+
+It might seem contrary to the goal of a PI controller to allow high load to increase delay. However, there is nothing sacred about the constant delay goal that was first proposed by Hollot \emph{et al} in 2001~\cite{Hollot01b:Ctrl_Theoretic_RED}, before designing a solution in the same year~\cite{Hollot01a:PI_AQM}. A controller can aim for any target that meets human needs, it does not have to be a constant.
+
+% ================================================================
+\section{Variants}\label{softtargettr_variants}
+
+By extension, a delay target that itself depends on the level of loss could be used in other, non-control-theoretic AQMs such as CoDel. As before, the intent would be to soften the delay target under high load, so as not to drive loss to extreme levels in pursuit of low queuing delay, given repairing loss itself introduces delay. 
+
+In the case of Codel, the variable called \texttt{target} would need to depend on the variable \texttt{drop\_next\_}, which determines the interval between drops. 
+
+

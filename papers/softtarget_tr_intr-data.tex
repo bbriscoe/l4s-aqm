@@ -1,0 +1,19 @@
+% !TeX root = softtarget_tr.tex
+% ================================================================
+
+% ================================================================
+\section{Introduction}\label{softtargettr_intr}
+
+All the well-known modern AQMs aim for a constant target queueing delay, e.g. CoDel~\cite{Nichols12:CoDel} including fq-CoDel, PIE~\cite{Pan13:PIE}, PI\(^2\)~\cite{DeSchepper16a:PI2}, DualPI\(^2\)~\cite{Briscoe15e:DualQ-Coupled-AQM_ID}, and a recent variant of DCTCP's AQM~\cite{Bai16:MQ-ECN, Bai16:ECN_GPS}. In the technical report ``Insights from Curvy RED''~\cite{Briscoe15b:CRED_Insights} it was proved that the level of loss needed to induce TCP-based load to keep to a fixed delay target has to rise to unacceptably high levels during periods of increased load.
+
+The report makes the point that the time taken to repair losses is itself a source of delay, particularly for short flows. Therefore, it is perverse to hold down queuing delay at the expense of very high loss levels.
+
+\cite{Briscoe15b:CRED_Insights} proposes an adaptation of the RED algorithm~\cite{Floyd93:RED} called Curvy RED that uses a convex function of queuing delay as a target. This softens (increases) the delay target as load intensifies. 
+
+However RED, and by extension Curvy RED, provides no control over queue dynamics, whereas control theoretic AQMs do. This means that during dynamic load excursions, RED and Curvy RED have little control over how much delay overshoots (or undershoots) while trying to bring it back to the target. This allows delay to vary uncontrollably above the target. This is a significant problem because many applications are sensitive to maximum, not average, delay.
+
+This memo proposes to transplant the core idea of Curvy RED, the softened delay target, into AQMs that are better designed to deal with dynamics, such as PIE or PI2, but that suffer from the weakness of a fixed delay target.
+
+It should be emphasized that this combination is only useful when loss is used as the signalling mechanism. By extension that means this combination would also be used with classic ECN~\cite{IETF_RFC3168:ECN_IP_TCP}, which requires any ECN behaviour to be equivalent to loss behaviour. However, this combination would be unnecessary for use with L4S ECN~\cite{Briscoe15f:ecn-l4s-id_ID},  which is not constrained to be equivalent to loss.
+
+

@@ -1,0 +1,187 @@
+% !TeX root = sigqdyn_tr.tex
+% ================================================================
+\section{Solutions}\label{sigqdyntr_solutions}
+
+\subsection{Service Time of a Queue}\label{sec:svc_time}
+
+In around 2012, it became recognized that one of the main problems with AQMs was the sensitivy of their  configuration to changing environments. For example:
+\begin{itemize}
+	\item access links often change their rate when modems retrain in response to interference. 
+	\item a queue is part of a scheduling hierarchy and traffic in higher priority queues varies the capacity left for a lower priority queue, rapidly varying the drain rate that the AQM experiences.
+	\item the capacity of radio links varies rapidly over time~\cite{McGregor10:Minstrel_TR}.
+\end{itemize}
+
+The CoDel algorithm~\cite{Nichols12:CoDel} proposed to solve this problem by measuring the the queue in units of time, rather than bytes. This made the configuration of the thresholds in the algoithm independent of the drain rate.
+
+Actually, as far back as 2002, 
+Kwon and Fahmy~\cite{Kwon02:Load_v_Queue_AQM} had advised that the queue should 
+be measured in units of time. Also, in 2003, S{\aa}gfors \emph{et al} had 
+modified the Packet Discard Prevention Counter (PDPC+~\cite{Sagfors03:PDPC_vary}) 
+algorithm by converting queue length to queuing delay to cope with the varying 
+link rate of 3G wireless networks.
+
+PDCP still measured the queue in bytes, but then converted the result to time by dividing by the link rate, which it measured over a brief interval. 
+
+CoDel proposed an elegant way to measure the service time of the queue by adding a timestamp to each packet's internal metadata on enqueue. Then at dequeue, it subtracted this timestamp from the system time. It called the result the sojourn time of the packet. It was pointed out that this sojourn time could be measured over an arbitrarily complex structure of queues, even across distributed input and output processors.
+
+Because PIE~\cite{Pan13:PIE} was initially designed for implementation using existing hardware, it did not measure the service time of the queue directly using the time-stamping approach of CoDel.
+Instead, like PDPC, it converted queue length to queuing delay using a regularly updated 
+estimate of the link rate, measured over a set amount of packets. When there were insufficient packets in the queue to measure the link rate or the rate was varying rapidly, PIE's estimate of the link rate became stale. So in later specifications of PIE~\cite{Pan17:PIE}, it recommended the sojourn approach of CoDel that had been designed for software implementation.
+
+Intially PIE also applied the congestion signal when it enqueued a packet. That is, it probabilistically dropped (or ECN-marked) the packet when it enqueued it. This signal then worked its way through the queue before being transmitted, which added another sojourn time before the signal reached the receiver, and subsequently the sender.
+
+The queue length (in bytes or an equivalent unit), also called the backlog, can be measured instantaneously when a packet is enqueued or when it is dequeued. Whereas sojourn time can only be measured once a packet is dequeued. 
+
+The matrix in \autoref{tab:added-delay} shows the delay added to the signal by various techniques for measuring queue delay (horizontal) and the two choices for where to apply the signal (vertical). It uses the following terminology: \(r\) is the duration used to sample the drain rate and \(s\) is the sojourn time. The right hand column shows the effective delay added by the simple estimation technique proposed in the following section.
+\begin{table}[h]
+\begin{center}
+\begin{tabular}{m{0.17\columnwidth}|*{3}{m{0.2\columnwidth}}}
+                     & \multicolumn{3}{c}{Technique to measure queue delay}\\
+     where signal is applied  
+                     & \(\frac{\mathrm{backlog}}{\mathrm{drain\_rate}}\)
+                                                     & sojourn time
+                                                                            &  scaled sojourn time\\\hline 
+	at enq    & \(r/2 + s\)  & \(2s\)        & \(3s/2\)\\
+	at deq    & \(r/2\)        & \(s\)           & \(s/2\)
+\end{tabular}
+\end{center}
+\caption{Delay added to congestion signal by three different measurement techniques}%
+\label{tab:added-delay}
+\end{table}
+
+The IETF specification of PIE~\cite{Pan17:PIE} recommends that the drain rate needs 16 packets to get a representative estimate, so \(r/2\) will be the serialization time of 8 packets, and it will become stale whenever there are less than 16 packets in the queue. In contrast, the sojourn time approaches apply down to a lone packet.
+
+\subsubsection{Expected Service Time}\label{sec:inst_svc_time}
+
+Whereas the amount of bytes in a queue can be measured at one any one instant, it takes one sojourn time to measure the sojourn time. Therefore, by the time the sojourn time has been measured it will be out of date, unless the arrival rate is the same as the departure rate, and the drain rate remains constant during the packet sojourn. 
+
+The sojourn time measured when a packet reaches the head takes no account of any change in the queue while that packet is working towards the head. So, as a burst (or a reduction in drain rate) extends the queue, the sojourn time of the packet at the front of the burst (or the start of the reduction) will show no evidence of the queue that has built behind it. Sojourn time only fully measures the burst (or rate reduction) when the last packet of the burst reaches the head of the queue. 
+
+Conversely, consider a queue that has been stable then the flow ends, so that no further packets arrive after a particular packet. Then, even when that packet was the last to leave from the head of the queue, its sojourn time would measure the stable queue delay when it arrived, because that would be how long it took to drain the queue. There would be no evidence of the now empty queue until traffic started again.
+
+It is proposed to solve this problem by scaling the sojourn time by the ratio of the backlogs at dequeue and enqueue. That is, the expected service time at any instant will be:
+\[\mathrm{E(svc\_time)} = \mathrm{sojourn\_time} \times \frac{\mathrm{(backlog\_deq)}}{\mathrm{(backlog\_enq)}},\]
+where \(\mathrm{backlog\_at\_enq}\) can be written into the packet's metadata at enqueue.
+
+\subsubsection{Rationale for Scaling Sojourn Time}\label{sec:inst_svc_time_justify}
+
+As \autoref{tab:added-delay} shows, it takes time to measure a representative rate and it takes time to measure a time. Ideally, but perhaps na\"{\i}vely, just before forwarding a packet one could estimate the instantaneous drain rate as the serialization time of the previous head packet. Then one could calculate the instantaneous queuing delay as the instantaneous backlog divided by this instantaneous drain rate.
+
+Then, for instance, if the arrival rate and drain rate have been constant while a packet works through the queue, but then the drain rate halves just before the packet is forwarded, the instantaneous queuing delay of the remaining queue will be double that measured by the sojourn time technique, whether or not it is scaled as proposed. 
+
+However, there is no reason to believe that the latest instantaneous rate measurement is the best estimate of the rate at which the remaining queue will drain. For instance, a radio link is continually testing different rates to find which is the best and if a queue is continually yielding to a higher priority queue, it will proceed in fits and starts. 
+
+Therefore, an estimate based on how the rate varied while the current head packet worked through the queue is not necessarily less correct than an estimate based on the drain rate at the instant the previous head packet departed.
+
+Also, rather than having to arbitrarily choose a number of packets to measure over, sojourn time techniques automatically tune the most commonly used measurement duration to the most common queuing delay.
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\columnwidth]{scaled-sojourn}
+	\caption{Rationale for Scaling Sojourn Time}\label{fig:scaled-sojourn}
+\end{figure}
+
+\autoref{fig:scaled-sojourn} visualizes the rationale for scaling the sojourn time. The two plots in the chart at the top of the figure show cumulative arrivals and departures of data in packets. Between times \(t_0\) and \(t_1\) a burst of packets arrives and between \(t_1\) and \(t_2\) a few packets arrive at first, then none. Over the whole time the departure rate is varying independently as, for example, a radio link would. At any time, for instance \(t_1\), the sojourn time  (\(t_{s1}\)) can be visualized as the horizontal distance back from the departures plot to the arrivals plot. And the backlog is shown as the vertical distance between the plots (\(b_1\)).
+
+It can be seen that the sojourn time (\(t_{s1}\)) at \(t_1\) takes account of the departure rate but not the arrival rate (the burst) between \(t_0\) and \(t_1\). The schematic in the middle of the figure shows using similar triangles how scaled sojourn time is constructed as \(t_{s1}^* = t_{s1} \times b_1/b_0\).  {ToDo: finish describing middle \& bottom of figure}
+
+The scaled sojourn time uses all the latest information available at time \(t_1\). It uses the sojourn time and the backlog when the dead packet departs. The sojourn time takes account of the backlog when the head packet arrived (\(b_0\)) and the average departure rate while it worked through the queue (termed \(r_{d1}\)). The backlog at departure takes account of the average arrival rate while it worked through the queue (termed \(r_{a1}\)).
+
+Algebraically,  the soujourn time at \(t_1\),
+\begin{align}
+	t_{s1} &= \frac{b_0}{r_{d1}}.\label{eqn:sojourn}
+\intertext{The backlog at \(t_1\),}
+	b_1 &= r_{a1} t_{s1}.\label{eqn:backlog}
+\intertext{The scaled sojourn time at \(t_1\),}
+	t_{s1}^* &= t_{s1} \frac{b_1}{b_0}.
+\intertext{Substituting from \autoref{eqn:sojourn} and \autoref{eqn:backlog}:}
+				   &= \frac{b_0}{r_{d1}} \frac{r_{a1} t_{s1}}{b_0}\notag\\
+				   &= t_{s1} \frac{r_{a1}}{r_{d1}}
+\end{align}
+That is, scaling the sojourn time by the ratio between the backlogs at dequeue and enqueue is equivalent to scaling it by the ratio between the average arrival and departure rates at enqueue and dequeue.
+
+\subsubsection{Implementing Scaled Sojourn Time}\label{sec:inst_svc_time_impl}
+
+Some implementations choose not to do too much at dequeue, because there is limited time between the packet reaching the head of the queue and starting to be forwarded. Therefore, it could be challenging to measure the system time, subtract the stored timestamp then also scale the result by a ratio.
+
+The following trick is likely to optimize execution of sojourn time scaling, although its efficiency will be machine-architecture-dependent:\\
+{\small\texttt{qdelay <<= (lg(backlog\_deq) - lg(backlog\_enq)\\+ 1/2)}}\\
+It is roughly equivalent to multiplying by the ratio between the backlogs, to the nearest integer power of 2.
+
+The \texttt{<<=} operator bit-shifts \texttt{qdelay} to the left by the expression on the right. \texttt{lg()} is the logarithm function base 2. The expression bit-shifts \texttt{qdelay} to the left by the difference between the logs of the backlogs at enqueue and dequeue. The addition of 1/2 is necessary so that integer truncation of the result will round to the nearest integer, rather than always rounding down. 
+
+The \texttt{clz()} function to count leading zeros could be used as a cheaper but more approximate equivalent, as follows:\\
+{\small\texttt{qdelay <<= (clz(backlog\_enq) - clz(backlog\_deq))}}\\
+This also avoids the need for any boundary checking code.
+
+For example, if the \texttt{backlog\_*} variables are 32-bit unsigned integers and
+\begin{itemize}[nosep]
+	\item[] \texttt{backlog\_enq = 3000}, so \texttt{clz(3000)=20}
+	\item[] \texttt{backlog\_deq = 30000}, so \texttt{clz(30000)=17}
+\end{itemize}
+Then
+\begin{itemize}[nosep]
+	\item[] \texttt{qdelay <<= 20 - 17}
+\end{itemize}
+is the same as
+\begin{itemize}[nosep]
+    \item[] \texttt{qdelay *= 2\^{}3},\\
+\end{itemize}
+which scales qdelay by 8, which approximates to \texttt{30,000/3,000 = 10} but is an integer power of 2. This is sufficient to scale the sojourn time to the correct binary order of magnitude, while still taking account of all the latest information in the queue.
+
+However, \texttt{clz()} introduces truncation bias because it always rounds down, which could lead the result to be persistently out by up to \(\times2\) or \(/2\) for a particular target sojourn time. Using the \texttt{lg()}-based expression could be out by from \(\sqrt{2}\) to \(1/\sqrt{2}\), but with no bias---it is equally likely to be out either way.
+
+A further rationale for scaling the sojourn time is that an implementation that is already measuring the sojourn time does not need any additional measurement code, because it already has to maintain a count of the backlog to do basic queue handling.
+
+A high performance implementation will maintain the backlog of a queue by maintaining two variables (much like the two plots at the top of \autoref{fig:scaled-sojourn}):
+\begin{itemize}[nosep]
+	\item[] \texttt{count\_enq} written solely by the enqueue routine;
+	\item[] \texttt{count\_deq} written solely by the dequeue routine
+\end{itemize}	
+Then the backlog can be measured as \texttt{count\_enq - count\_deq}. These two shared variables can be read from any routine, but they are only incremented by the routine that owns them, which avoids the performance hit of a mutual exclusion lock. The two counters monotonically increase like the system clock for the sojourn measurement, but at the rate of data transfer in and out respectively, not the rate of time passing. 
+
+To implement scaling of the sojourn time, it is necessary to store \texttt{backlog\_enq} in the packet's metadata when the packet is enqueued. Then at dequeue it can be combined with \texttt{backlog\_deq} using the trick above.
+
+\subsubsection{Distributed Queues}\label{sec:sojourn-distrib}
+
+Using sojourn time leverages the advantage that it can be measured across a complex set of queues, including the case where the inital enqueue and the final dequeue routines are distributed across different machines or processors, as already mentioned.
+
+This could include the case where the inputs are located on multiple client machines (e.g.\ mobile user equipment, WiFi stations, cable modems or passive optical network modems) while the output is a located at an aggregation node (e.g.\ a cellular base station (eNodeB)~\cite{Tan09:AQM_uplink_patent}, a WiFi access point (AP), a centralized controller for multiple WiFi APs, a cable modem terminal server (CMTS) or optical line termination (OLT) equipment), with a multiplexed access network between the clients and the aggregation node.
+
+In this case, the timestamp and backlog at enqueue would have to be included in the protocol data units being transmitted between machines (e.g. within the L2 protocol), not just in packet metadata held within one machine's memory space. Also the aggregation node would need high priority (pref.\ non-blocking) access to the \texttt{count\_enq} variable on the input machine, in order to calculate \texttt{backlog\_deq}. Certain access network technologies, e.g.\ those for cellular radio access networks, already include such a control channel. The delay to access a control variable at the input machine from the output machine would be larger than that in a non-distributed system, but it would at least be a known, constant delay. So the control system would still provide robust metrics to control queuing in the data channel.
+
+Of course, the sojourn time based on just a timestamp at enqueue could be written into PDUs to control any of the above distributed access networks, without the extra need for a non-blocking control channel. However, this would not provide the extra timeliness that scaled sojourn time would.
+
+The measured sojourn time would include the delay before a packet or frame was given access to the shared medium, which would be the main cause of the backlog at the client queue. As well as the aggregation node using (scaled) sojourn time to apply congestion signalling within the final dequeue routine (effectively on behalf of the input queue), the aggregation node could also use (scaled) sojourn time to govern the scheduling algorithm for controlling each client's inward (upstream) access rate into the shared medium, by altering the rate at which it granted medium access slots to each client.
+
+\subsubsection{Applicability of Scaled Sojourn Time}\label{sec:inst_svc_time_applic}
+
+Scaling the sojourn time improves its timeliness, so it is applicable wherever sojourn time itself is useful.
+
+It might be thought that an algorithm like the proportional integral (PI) controller\footnote{Used in QCN~\cite{IEEE802.1Qau:Ethernet_QCN}, PIE~\cite{Pan17:PIE}, PI2~\cite{DeSchepper16a:PI2} or the base AQM of DualPI2~\cite{Briscoe15e:DualQ-Coupled-AQM_ID}.} already takes account of the change in queuing delay between samples, so changing the queuing delay measurement itself seems redundant. However, scaling the sojourn time actually ensures that a PI algorithm takes account of the change between the latest queue delay measurements at each sample time, not between two outdated measurements.
+
+It might also be thought that PI controllers do not need to care so much about instantaneous measurements, because they are maintaining the fairly large queue that is needed by classic TCP algorithms like Reno, Cubic, Compound or BBR. However, even though a PI algorithm only samples the queue fairly infrequently (relative to packet serialization time), using an out of date queue metric makes it necessary to introduce extra heuristic code to deal with the resulting sloppiness.
+
+For instance, in the case of PIE~\cite{Pan17:PIE}, some heuristic code suppresses any drop once the last sample of queue delay falls below half the target delay.\footnote{As long as some other conditions hold that are not important here.} This is an attempt to suppress drop when the queue is draining after the load has gone idle. However, it is ineffective if sojourn time is used to measure the queue, because the sojourn time does not reduce until after the last packet (as explained earlier). Scaling the sojourn time whenever it is sampled should eliminate the need for this metric because it takes account of the reducing backlog as the queue drains. Indeed, this was the original motivation for developing the scaled sojourn time metric.
+
+Scaling the sojourn time is also highly applicable to the CoDel algorithm for the same reasons---sojourn time fails to take account of the evolution of the queue after the head packet was enqueued. In CoDel's case, sojourn time is measured per packet, so the scaling would have to be applied per packet. Nonetheless, the trick above at least minimizes the cycles required.
+
+Scaling the sojourn time should also be applicable to a simple low threshold algorithm like the time-based threshold recommended for DCTCP in~\cite{Bai16:MQ-ECN} and proposed as the native AQM for more general, so-called `L4S' traffic in DualPI2~\cite{Briscoe15e:DualQ-Coupled-AQM_ID}, where L4S stands for Low Latency, Low Loss, Scalable throughput. It would be applicable whether the threshold is a simple step, or a probabilistic ramp like the RED function (but based on instantaneous sojourn time, not smoothed queue length), or a deterministic ramp or convex function of instantaneous queueing delay. However, given these schemes are intended to keep queue delay very low, there is less scope for widely varying queue dynamics, so the cost of the extra processing might not prove to be worth the benefit.
+
+Scaling the sojourn time of a queue applies to many types of queue, not just packet queues, as long as the size of each job is quantified in common units that are additive. Examples include, but are not limited to, queues of datagrams, frames or packets, as well as message queues, call-server queues, computer process scheduling queues, storage queues (e.g. SSD or disk), workflow queues for mechanical or human-operated stages of tasks. 
+
+As well as dropping or ECN-marking, different sanctions could be applied using the same basic ideas. Examples include, but are not limited to: truncating or otherwise damaging the data or checksum of a message or packet but preserving the information necessary for delivery; rerouting; delaying; downgrading the class of service; and tagging.
+
+\subsection{Removing Randomness Delays}\label{sec:rand_delay}
+
+One of the main motivations for the design of Random Early Detection (RED)~\cite{Floyd93:RED} was to introduce randomness to break up synchronization between the sawteeth of TCP flows driving the same queue. This still remains an important requirement for all AQM algorithms~\cite{Baker15:AQM_Recommendations}.
+
+With clean-slate approaches such as DCTCP in private networks, or incrementally deployable clean-slate approaches like L4S~\cite{Briscoe16a:l4s-arch_ID} for the public Internet, requirements for the network and for end-systems are still in the process of definition. In these clean-slate or slightly dirty clean-slate cases, it would be possible to require the sender's congestion control to dither its response to congestion signals, so that it would not be necessary to introduce randomness in the network, which adds uncertainty and therefore delay to the congestion signalling channel. 
+
+Any AQM that probabilistically signals congestion with probability \(p\) could deterministically signal congestion by introducing an interval of \(1/p\) packets between each drop or mark. 
+
+The determinism would be lost wherever the AQM was controlling flows mulitplexed within one queue without per-flow state, because assignment of each deterministic congestion signal to each flow would become randomized by even slightly random packet arrivals from the different flows~\cite{Briscoe15d:PIE_rvw}.
+
+Nonetheless, whenever a flow is on its own in an AQM, which is a common case for the traffic patterns in many access network designs,  deterministic congeston signalling would reduce signalling delay. This could particularly ease the design of new flow-start algorithms, where the flow introduces microbursts or chirps to sense at what level it starts to congest the link.
+
+

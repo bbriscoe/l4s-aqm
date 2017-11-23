@@ -1,0 +1,32 @@
+% !TeX root = sigqdyn_tr.tex
+% ================================================================
+\section{Introduction}\label{sigqdyntr_intro}
+
+Much attention has been paid to reducing the delay experienced on the data path through packet networks. For instance, see sections II and IV of the extensive survey of latency reducing techniques in \cite{Briscoe14b:latency_survey}, which aim to reduce propagation delay, queuing delay, serialization delay, switching delay, medium acquisition delay and link error recovery delay.
+
+Propagation and queuing delay are the largest contributors to the overall delay experienced by network data. Propagation delay can be reduced by structural techniques, such as server placement, but queuing delay is a result of subtle interactions due to the system design. 
+
+Rather than directly considering the queuing delay of data, this memo focuses on reducing the delay that congestion signals experience within the queuing algorithm, which can be greater than the delay that the data itself experiences within the queue. Once the congestion signals are delayed, regulation of the load becomes more sloppy, and the queue tends to overshoot and undershoot more as a result, leading the data itself to experience greater peaks in queuing delay as well as intermittent under-utilization. Often peak delay is as critical as the average.
+
+The focus here is on congestion signals transmitted from an active queue management (AQM) algorithm~\cite{Adams13:AQM_survey} using either drop or explicit congestion notification (ECN)~\cite{Floyd94:ECN}, which are the only standardized signalling protocols~\cite{IETF_RFC3168:ECN_IP_TCP} for end-to-end use over one of the two Internet protocols, IPv4 and IPv6.
+
+These congestion signals experience delay consisting of the following elements:
+\begin{itemize}[nosep]
+	\item propagation delay (in common with the data)
+	\item queuing delay (in common with the data)
+	\item measurement delay: measuring the queue, as well as arrival and/or departure rates
+	\item smoothing delay: filtering out fluctuations in measurements
+	\item randomization delay: randomness is introduced to break up oscillations, but it requires longer to detect the underlying signal
+	\item signal encoding delay: a number representing the signal is produced within an AQM algorithm but it then takes a longer time to transmit this number to the transport endpoints because it has to be compressed into one bit per packet using a unary encoding, otherwise the AQM would have to hold flow state
+\end{itemize}
+
+This memo focuses on reducing three of these: queuing, measurement and randomization. The other three are briefly surveyed in \S\,\ref{sec:related}.
+
+The signal from an AQM can be subject to unnecessary queuing delay if it is applied during the enqueue process, so that it has to work its way through the queue before being transmitted to the line. In modern AQMs queuing delay is configured to be of the same order of magnitude as typical propagation delays. Therefore unnecessarily subjecting the congestion signal to the delay of the queue will add considerable sloppiness to the control loop.
+
+Even if a signal is applied during the dequeue process, it can be based on a measurement that starts at the enqueue process. This measurement delay is inherent in the sojourn time technique that is becoming common for measuring the queue in modern AQMs. This memo proposes a simple technique to cut that measurement delay by using all the information available in the queue at the point a packet is dequeued. At the moment a packet is dequeued there is very little time for additional processing, so the technique is designed for minimal execution time.
+
+The memo also proposes that randomization delay should be moved from the network to the end-system (just as smoothing delay has been similarly shifted in recent proposals (see \S\,\ref{sec:related})). This is a minor part of the memo that is orthogonal to the techniques to reduce the queuing and measurement aspects of signalling delays. 
+
+
+

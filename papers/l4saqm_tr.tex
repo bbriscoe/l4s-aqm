@@ -1,0 +1,199 @@
+\documentclass[a4paper,twoside,twocolumn]{article}
+
+\newif\iftr % \trtrue if for Tech Report
+\trtrue     % \trfalse if not for Tech Report
+%\newif\ifnony % \nonytrue if nonymised (ie nameful)
+%\nonyfalse     % \nonyfalse if anonymised
+
+% Test whether compiler is PDFLaTeX
+\usepackage{ifpdf}  % Avoid \newif\ifpdf which clashes with same command
+                    % in ifpdf package used by packages like hyperref
+\ifpdf
+    \usepackage[pdftex]{graphicx}
+    \usepackage[pdftex,colorlinks,linkcolor=blue,citecolor=blue,urlcolor=blue]{hyperref}
+    \pdfcompresslevel=9 % Maximum compression
+    \DeclareGraphicsExtensions{.pdf}
+    % \usepackage[pdftex]{thumbpdf}      % thumbnails for pdflatex
+    \pdfadjustspacing=1                % force LaTeX-like character spacing
+\else
+    \usepackage{graphicx}
+    \usepackage[hypertex]{hyperref}  % supports hypertext in PDF but no Acrobat features e.g. bookmarks
+\fi
+% Common settings for hyperref are made in hyperref.cfg
+
+% Load packages that require graphicx to have been loaded.
+\usepackage{todonotes} % Allows insertion of \todo{} notes - uses graphicx package and clashes with pdftex option below
+%\usepackage[disable]{todonotes} % Suppresses todo notes
+
+% Load supported packages
+\usepackage{
+url       %
+,fancyhdr % Fancy Headers
+,lastpage % Creates marker with key LastPage, for pxxx of yyy to refer to.
+,enumerate % More bullet styles
+,amsmath  % AMS maths
+,amsfonts % AMS fonts
+,amssymb  % AMS symbols
+%,moreverb % additional verbatim miscellany
+%,amsthm   % AMS theorems defines proof environment
+%,calc     % For calculations in length commands
+%,newtheorems % Load after hyperref: see below
+, enumitem % finer control of lists, e.g. \begin{itemize}[nosep] ... removes spacing
+, array % for vertically centred cell contents in tabular and array environments
+}
+%\usepackage[force,almostfull]{textcomp} % Additional symbols, including generic currency
+\usepackage[hang]{footmisc} % Hanging indent for footnotes
+\setlength\footnotemargin{10pt}
+
+% Load my personal packages
+\usepackage[noindent, arraystretch, fullpage]{setlengths} % [noindent, arraystretch, {fullpage|tightpage|inchrndtext}]{setlengths}
+\usepackage{
+own         % Defines \newboolean{twocol}
+}
+
+% Load my personal packages
+%\usepackage{
+%newtheorems, % Defines theorem, definition, hypothesis, lemma \& assumption environments
+%             % Note: \newtheorem must be used after \usepackage{hyperref} to ensure \theH<counter> is cross-referenced as well as \the<counter>
+%}
+%\usepackage{amsthm}
+%\newtheorem{assumption}{Assumption}
+%\newtheorem{requirement}{Requirement}
+%\newtheorem*{test*}{Test}
+
+\graphicspath{{images/}}
+
+% Preamble metadata---------------------------------------------------
+\newcommand*{\metaauthori}{Bob Briscoe}
+\newcommand*{\metaauthorii}{}
+\newcommand*{\metashorttitle}{The Native AQM for L4S Traffic}
+\newcommand*{\metatitle}{{\large{Technical Report}}\\The Native AQM for L4S Traffic}
+\newcommand*{\metano}{TR-BB-2017-002}
+\newcommand*{\metakeywords}{Data Communications, Networks, Internet,
+Control, Performance, Latency, Responsiveness, Dynamics, Active Queue Management, AQM, Algorithm, Standards}
+\newcommand*{\metahomepage}{\(<\)\href{http://bobbriscoe.net/}{http://bobbriscoe.net/}\(>\)}
+\newcommand*{\metamaili}{\href{mailto:research@bobbriscoe.net}{research@bobbriscoe.net}}
+\newcommand*{\metamailii}{}
+\newcommand*{\metaaddress}{}
+\newcommand*{\metatel}{Tel. +44 7718 902848}
+\newcommand*{\metaversion}{01}
+\newcommand*{\metadate}{07 Sep 2017}
+
+\hypersetup{                       % Set PDF document attributes
+     pdfauthor = {\metaauthori%
+     % and \metaauthorii
+     },
+     pdftitle = {\metashorttitle},
+     pdfsubject = {},
+     pdfkeywords = {\metakeywords}
+}%
+
+% Set document metadata
+\title{\metatitle}%
+\author{\metaauthori%
+\thanks{\metamaili, %
+\metaaddress}%
+%\ %
+%\and \metaauthorii%
+%\thanks{\metamailii}%
+}
+\date{\metadate}%
+
+% Running headers and footers
+\pagestyle{fancy}%
+\fancyhf{}%
+\fancyhead[LO,RE]{\metashorttitle}%
+\fancyhead[LE,RO]{\metano}%
+\fancyfoot[LO,RE]{\scriptsize{\copyright~bobbriscoe.net Ltd, 2017}}%
+%\fancyfoot[LO,RE]{}%
+\cfoot{\footnotesize{\scriptsize{Version~\metaversion}}}%
+\fancyfoot[RO,LE]{\scriptsize{\thepage~of~\pageref{LastPage}}}%
+
+\fancypagestyle{first}{%
+\fancyhead[LO,RE]{}%
+\fancyhead[LE,RO]{}%
+%\fancyhead[C]{\Large Draft: Limited Review Distribution only}%
+\fancyhead[C]{}%
+\renewcommand{\headrulewidth}{0pt}%
+}%
+
+% Typesetting control
+\pretolerance = 150%
+%\tolerance = 250%
+\tolerance = 5000%
+\emergencystretch = 0 em%
+% Typesetting overfull/underfull message control
+%\hbadness = 150%
+\hbadness = 4999%
+\hfuzz = 0 pt%
+
+% Set amsmath equation numbering to be relative to containing section
+%\numberwithin{equation}{section}
+\newcounter{ass}
+\newcounter{req}
+
+% Set Sectioning style
+%\setcounter{secnumdepth}{3}
+%\renewcommand{\baselinestretch}{1.2}
+%\renewcommand{\bibname}{References}
+
+% ----------------------------------------------------------------
+\begin{document}
+\bibliographystyle{alpha}%
+
+% ----------------------------------------------------------------
+
+\maketitle%
+\thispagestyle{first}
+
+% ----------------------------------------------------------------
+%\begin{abstract}
+%{\small\noindent%
+%\input{l4saqm_tr_abst-data}}      % Abstract
+%\end{abstract}
+\input{l4saqm_tr_intr-data}      % Intro
+\input{l4saqm_tr_body-data}      % Body
+%\input{l4saqm_tr_relwk-data}     % Related work
+%\input{l4saqm_tr_tail-data}      % Tail pieces (discussion, conclusions, plans, acks)
+% ----------------------------------------------------------------
+
+%\onecolumn%
+%\clearpage
+\addcontentsline{toc}{section}{References}
+
+{\footnotesize%
+\bibliography{aqm-details}}
+
+% ----------------------------------------------------------------
+%\clearpage
+%\twocolumn%
+%\appendix
+%\onecolumn%
+% ----------------------------------------------------------------
+%TODO
+
+\onecolumn%
+\addcontentsline{toc}{part}{Document history}
+\section*{Document history}
+
+\begin{tabular}{|c|c|c|p{3.5in}|}
+ \hline
+Version &Date &Author &Details of change \\
+\hline\hline
+\metaversion &\metadate     &Bob Briscoe &First complete version.\\\hline%
+\hline%
+\end{tabular}
+
+\end{document}
+
+% ----------------------------------------------------------------
+
+%Useful section headers
+%% ================================================================
+%\section{}\label{l4saqmtr_}
+%
+%% ----------------------------------------------------------------
+%\subsection{}\label{l4saqmtr_}
+%
+%% - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+%\subsubsection{}\label{l4saqmtr_}
