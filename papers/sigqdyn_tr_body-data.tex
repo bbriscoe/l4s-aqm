@@ -83,22 +83,28 @@ Also, rather than having to arbitrarily choose a number of packets to measure ov
 
 \autoref{fig:scaled-sojourn} visualizes the rationale for scaling the sojourn time. The two plots in the chart at the top of the figure show cumulative arrivals and departures of data in packets. Between times \(t_0\) and \(t_1\) a burst of packets arrives and between \(t_1\) and \(t_2\) a few packets arrive at first, then none. Over the whole time the departure rate is varying independently as, for example, a radio link would. At any time, for instance \(t_1\), the sojourn time  (\(t_{s1}\)) can be visualized as the horizontal distance back from the departures plot to the arrivals plot. And the backlog is shown as the vertical distance between the plots (\(b_1\)).
 
-It can be seen that the sojourn time (\(t_{s1}\)) at \(t_1\) takes account of the departure rate but not the arrival rate (the burst) between \(t_0\) and \(t_1\). The schematic in the middle of the figure shows using similar triangles how scaled sojourn time is constructed as \(t_{s1}^* = t_{s1} \times b_1/b_0\).  {ToDo: finish describing middle \& bottom of figure}
+It can be seen that the sojourn time (\(t_{s1}\)) between \(t_0\) and \(t_1\) takes account of the departure rate, but not the arrival rate (the burst), during that time. It is proposed to scale the sojourn time by the ratio of the backlogs at departure and arrival of the packet. That is \(t_{s1}^* = t_{s1} b_1/b_0\). This scaled sojourn time uses all the latest information available at time \(t_1\). 
 
-The scaled sojourn time uses all the latest information available at time \(t_1\). It uses the sojourn time and the backlog when the dead packet departs. The sojourn time takes account of the backlog when the head packet arrived (\(b_0\)) and the average departure rate while it worked through the queue (termed \(r_{d1}\)). The backlog at departure takes account of the average arrival rate while it worked through the queue (termed \(r_{a1}\)).
+The schematic in the middle of the figure shows using similar triangles how scaled sojourn time is constructed.  The departure rate during the sojourn is represented by the slope of the smaller of the middle triangle. The larger triangle extrapolates that departure rate to predict the time (\(t_{s1}^*\)) that it will take for the most recent backlog to drain.
 
-Algebraically,  the soujourn time at \(t_1\),
+The lower schematic shows the situation at time \(t_2\). The actual sojourn time of the new head packet \(t_{s2}\) is slightly shorter than the prediction \(t_{s1}^*\). From this new actual sojourn time, a new prediction can now be constructed  from the slightly steeper rate slope. This time the backlog \(b_2\) has reduced  during the sojourn of the head packet, because there has been a lull in arrivals since \(t_1\). Therefore the formula predicts that the sojourn time will be scaled down relative to its measured value.
+
+We will now return to time \(t_1\) and derive the scaled sojourn time algebraically, rather than geometrically. The departure rate during the sojourn of the head packet is
 \begin{align}
-	t_{s1} &= \frac{b_0}{r_{d1}}.\label{eqn:sojourn}
-\intertext{The backlog at \(t_1\),}
-	b_1 &= r_{a1} t_{s1}.\label{eqn:backlog}
-\intertext{The scaled sojourn time at \(t_1\),}
-	t_{s1}^* &= t_{s1} \frac{b_1}{b_0}.
-\intertext{Substituting from \autoref{eqn:sojourn} and \autoref{eqn:backlog}:}
-				   &= \frac{b_0}{r_{d1}} \frac{r_{a1} t_{s1}}{b_0}\notag\\
-				   &= t_{s1} \frac{r_{a1}}{r_{d1}}
+	r_{d1} &= \frac{b_0}{t_{s1}}.\label{eqn:drate}
+\intertext{The predicted sojourn time to drain the backlog at \(t_1\) is}
+	t_{s1}^* &= \frac{b_1}{r_{d1}}.\notag
+\intertext{Substituting from \autoref{eqn:drate}:}
+				&= t_{s1} \frac{b_1}{b_0}.\label{eqn:sojourn}
 \end{align}
-That is, scaling the sojourn time by the ratio between the backlogs at dequeue and enqueue is equivalent to scaling it by the ratio between the average arrival and departure rates at enqueue and dequeue.
+
+Another way to think of the scaling is as the ratio of average arrival and departure rates during the sojourn, \(r_{a1}\) and \(r_{d1}\). The backlog at \(t_1\) can be expressed in terms of the arrival rate over the sojourn time:
+\begin{align}
+	b_1 &= t_{s1} r_{a1}.\label{eqn:backlog}
+\intertext{Substituting this into \autoref{eqn:sojourn}, the scaled sojourn time at \(t_1\),}
+	t_{s1}^* &= t_{s1} \frac{r_{a1}}{r_{d1}}
+\end{align}
+That is, scaling the sojourn time by the ratio between the backlogs at dequeue and enqueue is equivalent to scaling it by the ratio between the average arrival and departure rates between enqueue and dequeue.
 
 \subsubsection{Implementing Scaled Sojourn Time}\label{sec:inst_svc_time_impl}
 
