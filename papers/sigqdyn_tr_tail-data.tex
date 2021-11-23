@@ -4,25 +4,6 @@
 
 Scaling sojourn time seems superficially similar to combined enqueue and dequeue ECN marking (CEDM)~\cite{Shan17:CEDM}, because CEDM marks a packet at enqueue if the queue is over a threshold, but then unmarks it at dequeue if the backlog has dropped below the threshold. However the two are significantly different. Firstly, CEDM has to be based on queue length in order to mark at enqueue. But also CEDM is intentionally asymmetric, in that it unmarks packets if the backlog at dequeue has dropped below the threshold, but it does not mark packets at dequeue if they have risen above the threshold. In contrast, scaling sojourn time is deliberately symmetric, meaning it compensates for growth or shrinkage of the backlog (\autoref{fig:scaled-sojourn}).
 
-PDPC+~\cite{Sagfors03:PDPC_vary} and CoDel~\cite{Nichols12:CoDel}, which is very similar, use a deterministic rather the probabilistic algorithm to encode the congestion signal. However, they do not propose a way to introduce randomness in the end-systems instead. Therefore, they are likely to be prone to synchronization effects.
-
-
-The introduction enumerated six causes of delay to congestion signals and highlighted three that this memo would focus on. The other sources of signalling delay have been considered in other work which is briefly surveyed below.
-
-\paragraph{Propagation Delay:} Numerous proposals have been made to speed up signalling by sending the signal from the queue back against the flow of traffic, direct to the sender. This can be done in a pure L2 network, e.g. backwards congestion notification (BCN) in IEEE 802.1Qau~\cite{IEEE802.1Qau:Ethernet_QCN} a.k.a.\ Quantized Congestion Notification (QCN), which is now rolled into 802.1Q-2011 and 802.1Q-2014. However, in general signalling backwards is problematic in IP networks, amongst other reasons because the sender has to accept out-of-band packets from any arbitrary source in the middle of the network, which makes it vulnerable to DoS attacks~\cite{IETF_RFC6633:ICMP_SQ_Depr}. 
-
-Therefore, here we will assume that signals are piggy-backed on the forward traffic flow then fed back to the sender via the receiver. However, this does not preclude a solution to the problems of backwards congestion notification.
-
-\paragraph{Smoothing Delay:} AQMs designed for the Internet's classic congestion controls (TCP Reno, Cubic, Compound, etc.) filter out fluctuations in the queue by smoothing it before using the smoothed measurement as a measure of load to drive the congestion signal. DCTCP proposed to smooth the signal at the sender, so that the network could send out the signal immediately, without smoothing. This allows the sender to receive the signal without smoothing delay, which is particularly useful in cases where the sender might not need to smooth the signal itself, e.g.\ to detect overshoot when accelerating to start a new flow. Shifting the smoothing function from the network to the sender also makes sense because the network does not know the round trip time (RTT) of each flow, so it has to smooth over the maximum likely RTT. Whereas a sender knows its own RTT and can smooth over this timescale.
-
-Here, we will assume no smoothing delay in the network, but that is orthogonal to the approaches proposed, which do not preclude network-based smoothing.
-
-\paragraph{Signal encoding delay:} Previous research has proposed to change the IP wire protocol to provide more bits to signal congestion. Nonetheless, it has been pointed out that the delay of a unary encoding is inversely proportional to the value being encoded, and the congestion window of a scalable congestion control is also inversely proportional to the value of the congestion signal. So, as flow rates (and consequently congestion windows) increase over the years, at least in general the delay to encode the signal does not increase.
-
-Therefore, here we assume a standard unary encoding of congestion signals. This does not preclude other encodings, e.g. the multi-bit encoding of QCN or minor alterations to the decoding to avoid saturation, such as that in \cite{Briscoe17a:CC_Tensions_TR}.
-
-
-
 \section{Further Work}
 
 These ideas might not be novel, but no concerted effort has been made to search the literature. The ideas have not been evaluated either.
@@ -31,4 +12,4 @@ These ideas might not be novel, but no concerted effort has been made to search 
 
 %The breakdown of the elements of signalling delay in the Introduction is based on unpublished work for the author's PhD from 2006--07 entitled ``Necessary Changes Towards a Sufficient Internetwork Protocol;
 %Simple, Scalable, Secure \& Responsive Resource Control''. 
-The scaling of the service time of the queue is based on discussions with Henrik Steen, an MSc student of the author, in Nov 2016 \& May 2017.
+The scaling of the service time of the queue was based on discussions with Henrik Steen, an MSc student of the author, in Nov 2016 \& May 2017.
