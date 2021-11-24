@@ -258,14 +258,14 @@ In complex cases like these, if minimization of measurement delay is important, 
 						& 				& Time-based backlog & Scaled sojourn time\\
 			\hline
 			\multirow{2}{*}%
-			{enqueue time}& arrival time	& -					& \checkmark \\
-						& backlog		& -					& \checkmark \\
+			{enqueue time}& arrival time		& -					& \checkmark \\
+						& backlog				& -					& \checkmark \\
 			\hline
 			\multirow{4}{*}%
-			{dequeue time}& departure time& \checkmark		& \checkmark \\
-						& backlog		& \checkmark		& \checkmark \\
-						& serial'n time	& \checkmark		& - \\
-						& packet size	& \checkmark		& - \\
+			{dequeue time}& departure time		& \checkmark		& \checkmark \\
+						& backlog				& \checkmark		& \checkmark \\
+						& serialization time	& \checkmark		& - \\
+						& packet size			& \checkmark		& - \\
 		\end{tabular}
 	\end{center}
 	\caption{Metrics needed by each approach}%
@@ -313,30 +313,30 @@ As well as dropping or ECN-marking, different sanctions could be applied using t
 % ================================================================
 \section{Other Signalling Delays}\label{sec:other_delays}
 
-The introduction enumerated six causes of delay to congestion signals and highlighted two that this memo would focus on. The other four sources of signalling delay are briefly surveyed below, with pointers to other work where they have been considered.
+The introduction enumerated six causes of delay to congestion signals and highlighted two that this memo would focus on. The other four sources of signalling delay are briefly surveyed below, with pointers to where they have been considered in other work.
 
 \paragraph{Propagation Delay:} Numerous proposals have been made to speed up signalling by sending the signal from the queue back against the flow of traffic, direct to the sender. This can be done in a pure L2 network, e.g. backwards congestion notification (BCN) in IEEE 802.1Qau~\cite{IEEE802.1Qau:Ethernet_QCN} a.k.a.\ Quantized Congestion Notification (QCN), which is now rolled into 802.1Q-2011 and 802.1Q-2014. However, in general signalling backwards is problematic in IP networks, amongst other reasons because the sender has to accept out-of-band packets from any arbitrary source in the middle of the network, which makes it vulnerable to DoS attacks~\cite{IETF_RFC6633:ICMP_SQ_Depr}. 
 
 Therefore, here we will assume that signals are piggy-backed on the forward traffic flow then fed back to the sender via the receiver. However, this does not preclude a solution to the problems of backwards congestion notification.
 
-\paragraph{Smoothing Delay:} AQMs designed for the Internet's classic congestion controls (TCP Reno, Cubic, Compound, etc.) filter out fluctuations in the queue by smoothing it before using the smoothed measurement as a measure of load to drive the congestion signal. DCTCP proposed to smooth the signal at the sender, so that the network could send out the signal immediately, without smoothing, and L4S followed this approach~~\cite{Briscoe16a:l4s-arch_ID}. This allows the sender to receive the signal without smoothing delay, which is particularly useful in cases where the sender might not need to smooth the signal itself, e.g.\ to detect overshoot when accelerating to start a new flow. Shifting the smoothing function from the network to the sender also makes sense because the network does not know the round trip time (RTT) of each flow, so it has to smooth over the maximum likely RTT. Whereas a sender knows its own RTT and can smooth over this timescale.
+\paragraph{Smoothing Delay:} AQMs designed for the Internet's classic congestion controls (TCP Reno, Cubic, Compound, etc.) filter out fluctuations in the queue by smoothing it before using the smoothed measurement as a measure of load to drive the congestion signal. DCTCP~\cite{Alizadeh10:DCTCP} proposed to smooth the signal at the sender, so that the network could send out the signal immediately, without smoothing, and L4S followed this approach~\cite{Briscoe16a:l4s-arch_ID}. This allows the sender to receive the signal without smoothing delay, which is particularly useful in cases where the sender might not need to smooth the signal itself, e.g.\ to detect overshoot when accelerating to start a new flow. Shifting the smoothing function from the network to the sender also makes sense because the network does not know the round trip time (RTT) of each flow, so it has to smooth over the maximum likely RTT. Whereas a sender knows its own RTT and can smooth over this timescale.
 
-\paragraph{Signal encoding delay:} Previous research has proposed to change the IP wire protocol to provide more bits to signal congestion. Nonetheless, it has been pointed out that the delay of a unary encoding is inversely proportional to the value being encoded, and the congestion window of a scalable congestion control is also inversely proportional to the value of the congestion signal. So, as flow rates (and consequently congestion windows) increase over the years, at least in general the delay to encode the signal does not increase.\footnote{However, encoding delay does increase with the degree of ACK coalescing.}
+\paragraph{Signal encoding delay:} Previous research has proposed to change the IP wire protocol to provide more bits to signal congestion. Nonetheless, it has been pointed out\footnote{Matt Mathis is believed to have pointed this out first.} that the delay of a unary encoding is inversely proportional to the value being encoded, and the congestion window of a scalable congestion control is also inversely proportional to the value of the congestion signal. So, as flow rates (and consequently congestion windows) increase over the years, at least in general the delay to encode the signal does not increase.\footnote{However, encoding delay does increase with the degree of ACK coalescing.}
 
-Therefore, in this report we have assumed a standard unary encoding of congestion signals. This does not preclude other encodings, e.g. the multi-bit encoding of QCN or minor alterations to the decoding to avoid saturation, such as that in \cite{Briscoe17a:CC_Tensions_TR}.
+Therefore, in this report we have assumed the unary encoding of congestion signals standardized as ECN by the IETF~\cite{IETF_RFC3168:ECN_IP_TCP}. This does not preclude other encodings, e.g. the multi-bit encoding of QCN or minor alterations to the decoding to avoid saturation, such as that in \cite{Briscoe17a:CC_Tensions_TR}.
 
 \subsection{Removing Randomness Delays}\label{sec:rand_delay}
 
-One of the main motivations for the design of Random Early Detection (RED)~\cite{Floyd93:RED} was to introduce randomness to break up synchronization between the sawteeth of TCP flows driving the same queue. This still remains an important requirement for all AQM algorithms~\cite{Baker15:AQM_Recommendations}.
+One of the main motivations for the design of Random Early Detection (RED)~\cite{Floyd93:RED} was to break up synchronization between the sawteeth of TCP flows driving the same queue. This still remains an important requirement for all AQM algorithms~\cite{Baker15:AQM_Recommendations}.
+
+AQMs mitigate synchronization by introducing marking or dropping more gradually than a tail-drop buffer would, and to a certain extent by randomizing the marking. 
 
 With clean-slate approaches such as DCTCP in private networks, or incrementally deployable clean-slate approaches like L4S~\cite{Briscoe16a:l4s-arch_ID} for the public Internet, requirements for the network and for end-systems are still in the process of definition. In these clean-slate or slightly dirty-slate cases, it would be possible to require the sender's congestion control to dither its response to congestion signals, so that it would not be necessary to introduce randomness in the network, which adds uncertainty and therefore delay to the congestion signalling channel. 
 
-Any AQM that probabilistically signals congestion with probability \(p\) could deterministically signal congestion by introducing an interval of \(1/p\) packets between each drop or mark. 
+Any AQM that probabilistically signals congestion with probability \(p\) could deterministically signal congestion by introducing an interval of \(1/p\) packets between each drop or mark. PDPC+~\cite{Sagfors03:PDPC_vary} and CoDel~\cite{Nichols12:CoDel}, which is very similar, use a deterministic rather the probabilistic algorithm to encode the congestion signal. Both AQMs in DualPI2~\cite[Appx.\ A]{Briscoe15e:DualQ-Coupled-AQM_ID} also uses a deterministic algorithm.
 
-The determinism would be lost wherever the AQM was controlling flows mulitplexed within one queue without per-flow state, because assignment of each deterministic congestion signal to each flow would become randomized by even slightly random packet arrivals from the different flows~\cite{Briscoe15d:PIE_rvw}.
+The determinism would be lost wherever the AQM was controlling flows multiplexed within one queue without per-flow state, because assignment of each deterministic congestion signal to each flow would become randomized by even slightly random packet arrivals from the different flows~\cite{Briscoe15d:PIE_rvw}.
 
 Nonetheless, whenever a flow is on its own in an AQM, which is a common case for the traffic patterns in many access network designs,  deterministic congestion signalling would reduce signalling delay. This could particularly ease the design of new flow-start algorithms, where the flow introduces microbursts or chirps to sense at what level it starts to congest the link.
 
-\todo{Explain the distinction between the marking algo determining when the next mark occurs and the CC sawtooth turning marking on and off.}
-
-PDPC+~\cite{Sagfors03:PDPC_vary} and CoDel~\cite{Nichols12:CoDel}, which is very similar, use a deterministic rather the probabilistic algorithm to encode the congestion signal. However, they do not propose a way to introduce randomness in the end-systems instead. Therefore, they are likely to be prone to synchronization effects.
+Determinism of an AQM is of less importance when the congestion control rather than the AQM determines the spacing between marks. For instance, the duration of the sawteeth of a classical congestion control scales with BDP. So at low BDP, the AQM determines the spacing between marks, but as BDP scales, the congestion control sawteeth move in and out of closed loop control, which determines the duration between `congestion events' with the AQM inactive between times~\cite[\S\,3.3]{Briscoe21c:pi2param}.
