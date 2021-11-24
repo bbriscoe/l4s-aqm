@@ -107,7 +107,7 @@ Two approaches will be proposed to minimize signalling delay. Both start with th
 \subsection{Time-Based Backlog}\label{sec:time-based_backlog}
 
 In this approach, as each packet is about to be dequeued from the head of the queue, the. expected service time to clear the backlog behind it is calculated as
-\[\mathrm{E(svc\_time)} = \mathrm{(backlog\_deq)}\times \frac{\mathrm{avg\_serializn\_time}}{\mathrm{(avg\_pkt\_size)}},\]
+\[\mathbb{E}(\mathrm{svc\_time}) = \mathrm{(backlog\_deq)}\times \frac{\mathrm{avg\_serializn\_time}}{\mathrm{(avg\_pkt\_size)}},\]
 or in English, the expected service time, \(t_b^*\), to clear the backlog is the backlog at dequeue, \(b\) (e.g.\ in bytes), multiplied by the recent average serialization time of each packet, \(t_s^*\) and divided by the recent average packet size (in bytes), \(s^*\).
 
 Multiplying by the quotient on the right is the same as dividing by the average drain rate. As with averaging any rate, the quotient should be calculated as a quotient of averages, not an average of quotients. This is particularly important if the drain rate varies considerably. Also the averages should be exponentially weighted moving averages (EWMAs) with high gain, e.g. \(g=\sfrac{1}{2}\), so that they respond rapidly to changing delivery rate. The gain should be an integer power of 2 so that it can be implemented as a bit-shift.
@@ -152,7 +152,7 @@ An alternative optimization would be to ammortize the per packet calculation ove
 \subsection{Scaled Sojourn Time}\label{sec:scaled_svc_time}
 
 Another approach would be to scale the sojourn time by the ratio of the backlogs at dequeue and enqueue. That is, the expected service time at any instant would be:
-\[\mathrm{E(svc\_time)} = \mathrm{sojourn\_time} \times \frac{\mathrm{backlog\_deq}}{\mathrm{backlog\_enq}},\]
+\[\mathbb{E}(\mathrm{svc\_time}) = \mathrm{sojourn\_time} \times \frac{\mathrm{backlog\_deq}}{\mathrm{backlog\_enq}},\]
 where \(\mathrm{backlog\_enq}\) can be written into the packet's metadata at enqueue, along with the arrival time, which is how sojourn time is already implemented.
 
 \subsubsection{Rationale for Scaling Sojourn Time}\label{sec:inst_svc_time_justify}
