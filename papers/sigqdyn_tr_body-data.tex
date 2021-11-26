@@ -389,7 +389,15 @@ From the earlier analysis of EST-based marking of traffic bursts, it can be seen
 
 \subsection{Queue Protection and Marking Fairness}\label{sec:qprot_marking_fairness}
 
-\todo{Subsection to discuss potential for Queue Protection without per-flow state and ACK Asad for the initial idea.}
+The goal of queue protection (QProt) is to try to eliminate bursty traffic from a shared low latency queue. The ability of EST-based marking to focus on bursts raises the possibility of a crude form of queue protection without having to identify layer-4 flows (in contrast to per-flow QProt specified for DOCSIS~\cite{Briscoe19b:q-prot_ID}).
+
+Here an example design for aggregate QProt is proposed, as an extension to the DualQ Coupled AQM. When a packet is about to be dequeued from the L queue, if the EST of the backlog behind it exceeds the maximum ECN-marking threshold\footnote{The step threshold, or the top of a ramp function.} by some margin, the head packet would be redirected to the back of the C queue.\footnote{Preferably by rearranging pointers, rather than moving the packet data.} The margin might be set, for instance, at twice the depth of the maximum marking threshold, or it might be slightly randomized to discouraging sources from `flying just under the radar'. Once redirection had started, it would continue until the EST at least reduced below the allowed margin, or preferably it could continue until the EST had been brought down to the maximum ECN marking threshold. 
+
+Then, any large bursts would be more likely to be ejected from the L queue, while traffic keeping within the maximum ECN threshold would be more likely to remain in the L queue, without having to sit behind large bursts. Of course there is no guarantee that smooth traffic would not sometimes be redirected, when it happened to arrive in front of a burst. But smooth, well-behaved traffic should never build up behind a burst that had been large enough to be ejected from the L queue.
+
+This technique would cause reordering of any flow it redirected, However, any application receiving data in bursts should not be particularly sensitive to reordering within the bursts, given one assumes it would have to buffer the bursts as they arrive anyway. Nonetheless, any even slight harm due to reordering would help to disincentivize an application from sending in bursts.
+
+The above technique is not necessarily only applicable to a DualQ. It is simple enough that it could potentially also be included in a per-flow queue, to protect against the possibility of a bursty flow encapsulated within a VPN alongside smooth flows. For instance, the L4S architecture allows for the possibility that VPNs are separated into two sister per-flow queues for L4S and non-L4S packets. Then the L4S per-`flow' queue could redirect bursts into its non-L4S sister. However, a bursty flow within a VPN is perhaps a corner case that would not warrant such an addition.
 
 % ================================================================
 \section{Other Signalling Delays}\label{sec:other_delays}
