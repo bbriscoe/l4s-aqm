@@ -303,18 +303,20 @@ As well as dropping or ECN-marking, different sanctions could be applied using t
 
 \subsection{Marking Fairness Experiments}\label{sec:marking_fairness_expts}
 
-\todo{ToDo: Experiments with sojourn-based marking to compare against EST-based below}
+\subsubsection{EST-based Marking Fairness}\label{sec:marking_fairness_expts_est}
 
 \begin{figure*}[t!]
 	\centering
-	\includegraphics[width=\linewidth]{marking-fairnessSumBeta125}
-	\includegraphics[width=\linewidth]{marking-fairnessSumBeta10625}
-	\caption{Marking fairness of two flows wrt capacity share, \(\lambda\), and relative burstiness, \(\beta\).\\
-	\(\lambda_a+\lambda_b=100\%; \quad\mathrm{top:} \beta_a+\beta_b=1.25; \quad\mathrm{bottom:} \beta_a+\beta_b=1.0625\). 
-	The left-hand charts are the same as the right, except they exclude two scenarios that otherwise obscure the other plots}\label{fig:marking-fairness-range}
+	\includegraphics[width=\linewidth]{est-fairnessSumBeta10625}
+	\includegraphics[width=\linewidth]{est-fairnessSumBeta125}
+	\includegraphics[width=\linewidth]{est-fairnessSumBeta225}
+	\caption{EST-based marking fairness of two flows wrt capacity share, \(\lambda\), and relative burstiness, \(\beta\).\\
+	\(\lambda_a+\lambda_b=100\%; \quad\mathrm{top:} \beta_a+\beta_b=1.0625; \quad\mathrm{middle:} \beta_a+\beta_b=1.25 
+	\quad\mathrm{bottom:} \beta_a+\beta_b=2.25\). 
+	The left-hand charts are the same as the right, except they exclude two scenarios that otherwise obscure the other plots}\label{fig:est-fairness-range}
 \end{figure*}
 
-\autoref{fig:marking-fairness-range} shows the degree to which ECN marking is or is not focused onto the more bursty of a pair of flows indexed as \(a\) \& \(b\). Both flows were modelled as unresponsive and two timeslots were used for the smaller burst in a similar way to the example in \autoref{fig:marking-fairness}b). So the results are not necessarily an accurate reflection of a real AQM, but they should at least be indicative of the likely outcome.
+\autoref{fig:est-fairness-range} shows the degree to which EST-based ECN marking is or is not focused onto the more bursty of a pair of flows indexed as \(a\) \& \(b\). Both flows were modelled as unresponsive in a time-slotted model similar to the example in \autoref{fig:marking-fairness}b). So the results are not necessarily an accurate reflection of a real AQM, but they should at least be indicative of the likely outcome.
 
 The charts show the ECN marking level that results from scanning the scenario parameters across two dimensions:
 \begin{enumerate}
@@ -322,17 +324,55 @@ The charts show the ECN marking level that results from scanning the scenario pa
 	\item The normalized burst size of flow \(a\), \(\beta_a\) is increased from \sfrac{1}{16} in steps of \sfrac{1}{16}, while the burst size of flow \(b\) is reduced such that the sum of both burst sizes is constant. The sum is 1.25 in the top plots, and 1.0625 in the bottom. 	Normalization is relative to the ECN marking threshold, so a sum of 1.25 means that if bursts from both flows coincide, a previously empty queue would exceed the marking threshold by 25\%.
 \end{enumerate}
 
-It can be seen from the right-hand side of any of the plots that, if flow \(a\) utilizes a small fraction of the capacity (up to roughly \sfrac{1}{8}) and if it is even slightly more bursty than the flow \(b\) (which is using more of the capacity), EST-based marking focuses a high fraction of the marking onto the more bursty flow. Still focusing on the right hand-halves (where flow \(a\) is more bursty than \(b\)), stepping down the scenarios as flow \(a\) uses more of the capacity, it still attracts more of the marking than \(b\) but the bias against it reduces. By the time \(a\) is using half the capacity, it's marking is still generally higher than \(b\) but the difference continually narrows, even where \(a\) is considerably more bursty than \(b\).
+It can be seen from the right-hand side of any of the plots that, if flow \(a\) utilizes a small fraction of the capacity (up to roughly \sfrac{1}{8}) and if it is even slightly more bursty than the flow \(b\) (which is using more of the capacity), EST-based marking focuses a high fraction of the marking onto the more bursty flow. 
 
-It is also noticeable that wobbles increasingly appear; some so great that at certain points, even when sharing capacity 50:50, the more bursty flow attracts \emph{less} of the marking. \todo{It is possible that these wobbles are an artefact of the model, so a more precise simulation will be necessary.}
+It is also noticeable that wobbles increasingly appear; some so great that at certain points, even when sharing capacity 50:50, the more bursty flow attracts \emph{less} of the marking. It is possible that these wobbles are an artefact of the time-slotting in the model, so a more precise simulation will be necessary.
 
-By comparing the top charts with the bottom in \autoref{fig:marking-fairness-range}, it can also be seen that, a higher combined level of burstiness pushes the marking level of the more bursty flow up to 100\% over a wider range of capacity shares. This trend continues as combined burstiness increases further than shown. For instance when flow \(a\) bursts to 2\(\times\) the threshold, and \(b\) bursts to \(\sfrac{1}{16}\), \(a\) attracts 100\% marking for any capacity share up to 50\%.
+Working down from top to bottom of \autoref{fig:est-fairness-range}, it can also be seen that, as the combined level of burstiness increases, it pushes the marking level of the more bursty flow up to 100\% over a wider range of capacity shares, ultimately remaining at 100\% across any share of burstiness.
+
+However, it must be admitted that the region where the plots of flow \(a\) and \(b\) cross (for any capacity share, \(\lambda_a\)) is always to the left of centre. The capacity share of \(a\) is never more than half, so this means that there is a range to the left of centre where \(a\)'s marking probability is higher even though both its burstiness and capacity share are lower than \(b\)'s, although this inversion corrects itself as \(b\)'s relative burstiness increases.
+
+\begin{figure*}[t!]
+	\centering
+	\includegraphics[width=\linewidth]{est-cong-rateSumBeta125}
+	\caption{EST-based congestion-rate of two flows wrt capacity share, \(\lambda\), and relative burstiness, \(\beta\).\\
+		\(\lambda_a+\lambda_b=100\%; \quad\mathrm{top:} \beta_a+\beta_b=1.0625; \quad\mathrm{middle:} \beta_a+\beta_b=1.25 
+		\quad\mathrm{bottom:} \beta_a+\beta_b=2.25\) (same as \autoref{fig:est-fairness-range}). 
+		The left-hand charts are the same as the right, except they exclude two scenarios that otherwise obscure the other plots}\label{fig:cong-rate-range}
+\end{figure*}
+
+Focusing again on the right hand side of the charts (where flow \(a\) is more bursty than \(b\)), it may seem counter-intuitive that those flows with a smaller share of the capacity attract a higher marking probability. Even though \(a\)'s marking probability is still generally higher than \(b\)'s, the difference continually narrows, even where \(a\) is considerably more bursty than \(b\).
+
+The explanation is that, when the size of flow \(a\)'s bursts relative to \(b\)'s remains the same (on the same vertical), but its share of capacity increases, its bursts will become more closely spaced. Then, they are more likely to arrive behind some of \(b\)'s traffic. So flow \(a\)'s marking probability will decrease as its capacity share increases.
+
+Also it should be kept in mind that two flows with the same burstiness (on the vertical line down the middle of the plots) would be expected to have the same marking \emph{probability} even if they have different shares of capacity. But a flow with a lesser share of the capacity will attract a proportionately lesser share of the \emph{volume} of marks. This is explained in \autoref{fig:cong-rate-range}, which shows the same traffic scenario as the middle of \autoref{fig:est-fairness-range}, but the metric on the y-axis is normalized congestion-rate, which represents the proportion of link throughput that is marked, rather than just the proportion of flow \(a\). Or formally, the normalized congestion rate of flow \(a\), \(\nu_a = \lambda_a p_a\). With this metric it can be seen that, for the same relative burstiness (same vertical), the proportion of marks increases with capacity share, as would be expected intuitively.
+
+\begin{figure*}
+	\centering
+	\includegraphics[width=\linewidth]{soj-fairnessSumBeta10625}
+	\includegraphics[width=\linewidth]{soj-fairnessSumBeta125}
+	\includegraphics[width=\linewidth]{soj-cong-rateSumBeta125}
+	\includegraphics[width=\linewidth]{soj-fairnessSumBeta225}
+	\caption{Sojourn-based marking fairness of two flows wrt capacity share, \(\lambda\), and relative burstiness, \(\beta\).\\
+		\(\lambda_a+\lambda_b=100\%; \quad\mathrm{top:} \beta_a+\beta_b=1.0625;\) upper (marking prob) and lower (congestion-rate) middle: \(\beta_a+\beta_b=1.25 
+		\quad\mathrm{bottom:} \beta_a+\beta_b=2.25\) (same as \autoref{fig:est-fairness-range}). 
+}\label{fig:soj-fairness-range}
+\end{figure*}
+
+\subsubsection{Sojourn-based Marking Fairness}\label{sec:marking_fairness_expts_soj}
+
+For comparison, \autoref{fig:soj-fairness-range} shows the ECN marking that results from sojourn-based marking under the same traffic scenarios as the EST-based marking in \autoref{fig:est-fairness-range} (note that the lower middle row is the same scenario as the upper middle, but the metric is normalized congestion-rate, which can be compared with \autoref{fig:cong-rate-range}).
+
+The most obvious failing can be seen on the left-hand half of the lowest row (\(\beta_a+\beta_b=2.25\)), but also on the far-left of the other rows, where flow \(a\)'s marking exceeds \(b\)'s even though its burstiness and capacity share are both lower.
+Similarly, on the right of the plots, no matter how bursty \(a\) becomes, its marking probability never exceeds \(b\)'s. Thus, sojourn-based marking sometimes perversely rewards burstiness and penalizes smoothness.
+
+The second most obvious failing is the much lower overall marking probability in any of the scenarios, given the high degree of burstiness in all scenarios. Even when the bursts of flow \(a\) alone all exceed twice the marking threshold (\(\beta_a>2\) in the bottom row), marking is no higher than 60\% (in contrast, as  \(a\)'s bursts become smaller its marking perversely rises to 100\%). And in the middle case (\(\beta_a+\beta_b=2.25\)), even when all \(a\)'s bursts exceed the threshold (\(\beta_a>1\) the marking probability only lies in the 10\%--20\% range.
 
 \subsection{What Marking would be Fair?}\label{sec:marking_fairness_definition}
 
 As remarked in \S\,\ref{sec:fairer_marking} it is obvious when marking is extremely unfair. For instance, if a bursty flow is using fraction \(\lambda\) of the capacity on average, but attracting less than fraction \(\lambda\) of the marking. However, it is not obvious how much more marking it would be fair to apply to a flow for bursts of a particular size relative to those of another flow.
 
-The doctoral research of Wischik~\cite{Wischik99:Mark_Fairly, Wischik99:Large_Dev_PhD} and sample path shadow pricing~\cite{Kelly98:Shadow_prices_prop_fair} on which it is based appear to be the only work to tackle the question of how to define fair marking. Wischik considers a number of possible definitions of fair marking, which is reduced down to the following three candidates, all of which are intended for offline analysis only, not for a live marking algorithm. Also all are defined in relation to packet loss, and all assume high statistical multiplexing of flows at a resource:
+The doctoral research of Wischik~\cite{Wischik99:Mark_Fairly, Wischik99:Large_Dev_PhD} and sample path shadow pricing~\cite{Kelly98:Shadow_prices_prop_fair} on which it is based appear to be the only work to tackle the question of how to define fair marking for anything but smooth flows. Wischik considers a number of possible definitions of fair marking, which is reduced down to the following three candidates, all of which are intended for offline analysis only, and infeasible for a live marking algorithm. Also all are defined in relation to packet loss, and all assume high statistical multiplexing of flows at a resource:
 \begin{description}
 	\item[Effective bandwidth:] EB was developed in the context of flow admission control. The EB of a variable rate flow is somewhere between its mean and peak throughputs. A bursty flow can be replaced by another flow with the same effective bandwidth without altering the resulting loss probability, including replacement by a flow with constant throughput equal to the effective bandwidth. So it would be fair to mark flows in proportion to their effective bandwidths.
 	\item[\boldmath\(\Delta{L}\):] The function \(L(Y)\) is defined as the volume of loss at a resource when presented with load \(Y\). Then \(\Delta{L(Y)}\) is the change in the loss volume when the flow under consideration is removed, which is the standard definition of a shadow price, so should provide the basis for fair marking. 
@@ -381,7 +421,7 @@ For marking based on expected service time (EST), we redefine overflow as exceed
 	\item EST does not mark any innocent packets; however it does not mark the packets that contributed to excess delay but were dequeued after excess delay had ended (the pink packets to the right of the red ECN-marked packets). 
 	\item EST marks as many packets in the busy period leading up to excess delay as possible, but it cannot mark those that had already been served when excess delay was first detected (the pink packets to the left).
 \end{enumerate}
-From the earlier analysis of EST-based marking of traffic bursts, it can be seen that EST will rarely miss any packets in the build-up to excess delay, because most of the packets of a burst are still queued when the tail arrives. Also stopping EST marking as soon as the excess delay has gone away seems preferable for two reasons:
+From the earlier analysis of EST-based marking of traffic bursts (\S\,\ref{sec:marking_fairness_expts_est}), it can be seen that EST will rarely miss any packets in the build-up to excess delay, because most of the packets of a burst are still queued when the tail arrives.\footnote{Where the difference between the burst rate and the service rate of the queue is less pronounced, this would not be true. However, in the earlier analysis, bursts were always assumed to arrive in one timeslot.} Also stopping EST marking as soon as the excess delay has gone away seems preferable for two reasons:
 \begin{itemize}
 	\item It seems less likely to hit smoother flows, which tend to back up behind a burst, as explained in \S\,\ref{sec:fairer_marking};
 	\item When there has been a period of marking, the load arriving from sources will reduce a round trip later. Thus if marking were to continue until the queue was empty, it would tend to cause under-utilization in the following round trip.
@@ -397,7 +437,9 @@ Then, any large bursts would be more likely to be ejected from the L queue, whil
 
 This technique would cause reordering of any flow it redirected, However, any application receiving data in bursts should not be particularly sensitive to reordering within the bursts, given one assumes it would have to buffer the bursts as they arrive anyway. Nonetheless, any even slight harm due to reordering would help to disincentivize an application from sending in bursts.
 
-The above technique is not necessarily only applicable to a DualQ. It is simple enough that it could potentially also be included in a per-flow queue, to protect against the possibility of a bursty flow encapsulated within a VPN alongside smooth flows. For instance, the L4S architecture allows for the possibility that VPNs are separated into two sister per-flow queues for L4S and non-L4S packets. Then the L4S per-`flow' queue could redirect bursts into its non-L4S sister. However, a bursty flow within a VPN is perhaps a corner case that would not warrant such an addition.
+If all the traffic was bursty, perhaps because it had passed through a bursty link upstream, aggregated QProt would redirect some traffic from all flows into the C queue, which would just add reordering to all traffic. Per-flow QProt is designed to redirect the most bursty flows until queue delay reduces, so it would not necessarily fare much better in a scenario where burstiness was added to all traffic in the aggregate. However, QProt attempts to focus redirection on only a few flows, even if they are only slightly worse than others, which might help in this case. In practice, most flows would be responsive to congestion signalling so, as long as the marking was fair, aggregate burstiness should result in general under-utilization, rather than endemic reordering.\footnote{Where the IETF draft on L4S~\cite{Briscoe15f:ecn-l4s-id_ID} discusses burstiness from upstream links, it suggests that the pragmatic solution is to improve the configuration of the system as a whole, for instance reducing the burstiness of an upstream link, or increasing the L4S marking threshold at the bottleneck.}
+
+The above aggregate QProt technique is not necessarily only applicable to a DualQ. It is simple enough that it could potentially also be included in a per-flow queue, to protect against the possibility of a bursty flow encapsulated within a VPN alongside smooth flows. For instance, the L4S architecture allows for the possibility that VPNs are separated into two sister per-flow queues for L4S and non-L4S packets. Then the L4S per-`flow' queue could redirect bursts into its non-L4S sister. However, a bursty flow within a VPN is perhaps a corner case that would not warrant such an addition.
 
 % ================================================================
 \section{Other Signalling Delays}\label{sec:other_delays}
