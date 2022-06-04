@@ -1,6 +1,6 @@
 % !TeX root = sigqdyn_tr.tex
-% ================================================================
-\section{The Time to Measure the Service Time of a Queue}\label{sec:svc_time}
+% ----------------------------------------------------------------
+\subsection{The Time to Measure the Service Time of a Queue}\label{sec:svc_time}
 
 In around 2012, it became recognized that one of the main problems with AQMs was the sensitivy of their configuration to changing environments. For example:
 \begin{itemize}
@@ -9,36 +9,38 @@ In around 2012, it became recognized that one of the main problems with AQMs was
 	\item the capacity of radio links varies rapidly over time~\cite{McGregor10:Minstrel_TR}.
 \end{itemize}
 
-The CoDel algorithm~\cite{Nichols12:CoDel} proposed to solve this problem by measuring the queue in units of time, rather than bytes. This made the configuration of the thresholds in the algoithm independent of the drain rate.
+The CoDel algorithm~\cite{Nichols12:CoDel} proposed to solve this problem by measuring the queue in units of time, rather than bytes. This made the configuration of the thresholds in the algorithm independent of the drain rate.
 
 Actually, as far back as 2002, 
 Kwon and Fahmy~\cite{Kwon02:Load_v_Queue_AQM} had advised that the queue should 
 be measured in units of time. Also, in 2003, S{\aa}gfors \emph{et al} had 
 modified the Packet Discard Prevention Counter (PDPC+~\cite{Sagfors03:PDPC_vary}) 
 algorithm by converting queue length to queuing delay to cope with the varying 
-link rate of 3G wireless networks.
+link rate of 3G wireless networks. PDCP still measured the queue in bytes, but then converted the result to time by dividing by the link rate, which it measured over a brief interval. 
 
-PDCP still measured the queue in bytes, but then converted the result to time by dividing by the link rate, which it measured over a brief interval. 
-
-CoDel proposed an elegant way to measure the service time of the queue by adding a timestamp to each packet's internal metadata on enqueue. Then at dequeue, it subtracted this timestamp from the system time. It called the result the sojourn time of the packet. It was also pointed out that this sojourn time could be measured over an arbitrarily complex structure of queues, even across distributed input and output processors.
+CoDel proposed an elegant way to measure the service time of the queue by adding a timestamp to each packet's internal metadata on enqueue. Then at dequeue, it subtracted this timestamp from the system time. The authors called the result the sojourn time of the packet. It was also pointed out that this sojourn time could be measured over an arbitrarily complex structure of queues, even across distributed input and output processors.
 
 Because PIE~\cite{Pan13:PIE} was initially designed for implementation using existing hardware, it did not measure the service time of the queue directly using the time-stamping approach of CoDel.
 Instead, like PDPC, it converted queue length to queuing delay using a regularly updated 
-estimate of the link rate, measured over a set amount of packets. When there were insufficient packets in the queue to measure the link rate or the rate was varying rapidly, PIE's estimate of the link rate became stale. So in later specifications of PIE~\cite{Pan17:PIE}, it recommended the sojourn approach of CoDel that had been designed for software implementation.
+estimate of the link rate, measured over a set amount of packets. When there were insufficient packets in the queue to measure the link rate or the rate was varying rapidly, PIE's estimate of the link rate became stale. So in later specifications of PIE~\cite{Pan17:PIE}, it recommended the sojourn approach of CoDel that had originally been designed for software implementation.
 
-The queue length (in bytes or an equivalent unit), also called the backlog, can be measured instantaneously when a packet is enqueued or when it is dequeued. Whereas sojourn time can only be measured once a packet is dequeued. 
+The queue length (in bytes or an equivalent unit), also called the backlog, can be measured instantaneously when a packet is enqueued or when it is dequeued. In contrast, it takes a sojourn time to measure sojourn time (which can only be measured as a packet is dequeued). So measuring sojourn time inherently introduces delay into the control path.
 
-It minimizes delay if the signal is applied at dequeue. However, in some hardware pipelines the process of preparing link layer frames, including potential encryption, compression and framing, is already in progress by the time a packet is dequeued. So it is too late to mark or drop a packet. This is one reason that PIE initially applied the congestion signal when it enqueued a packet. That is, it probabilistically dropped (or ECN-marked) the packet when it enqueued it. This signal then worked its way through the queue before being transmitted, adding a sojourn time of delay to the signal. This is still the case for DOCSIS PIE, but software variants of PIE now apply marking or dropping at dequeue. 
+To minimize delay, the signal should be applied at dequeue. However, in some hardware pipelines the process of preparing link layer frames, including potential encryption, compression and framing, is already in progress by the time a packet is dequeued. So it is too late to mark or drop a packet. This is one reason that PIE initially applied the congestion signal when it enqueued a packet. That is, it probabilistically dropped (or ECN-marked) the packet when it enqueued it. This signal then worked its way through the queue before being transmitted, adding a sojourn time of delay to the signal. This is still the case for DOCSIS PIE, but software variants of PIE now apply marking or dropping at dequeue. 
 
-The matrix in \autoref{tab:added-delay} shows the delay added to the signal by various techniques for measuring queue delay (horizontal) and the two choices for where to apply the signal (vertical). It uses the following terminology: \(t_r\) is the duration used to sample the drain rate and \(t_s\) is the sojourn time. 
+The matrix in \autoref{tab:added-delay} shows the delay added to the signal by various techniques for measuring queue delay that will be introduced later (horizontal) and the two choices for where to apply the signal (vertical). It uses the following terminology: \(t_r\) is the duration used to sample the drain rate and \(t_s\) is the sojourn time. 
 \begin{table}[h]
 \begin{center}
-\begin{tabular}{m{0.17\columnwidth}|*{3}{m{0.2\columnwidth}}}
+\begin{tabular}{p{0.17\columnwidth}|C{0.16\columnwidth}*{2}{C{0.2\columnwidth}}}
+\multirow{3}{0.17\columnwidth}
+{Where signal is applied}
 			& \multicolumn{3}{c}{Technique to measure queue delay}\\
-     where signal is applied  
-			& Sojourn time
-						& Time-based backlog
-											&  Scaled sojourn time\\\hline 
+			& \multirow{2}{0.17\columnwidth}
+			  {Sojourn Time}
+			            & \multicolumn{2}{C{0.5\columnwidth}}
+			              {Expected Service Time}\\
+                          \cline{3-4}
+			&			& Time-Based Backlog&  Scaled Sojourn Time\\\hline 
 	at enq  & \(2t_s\)	& \(t_r + t_s\)	& \(3t_s/2\)\\
 	at deq  & \(t_s\)	& \(t_r\)			& \(t_s/2\)
 \end{tabular}
@@ -47,41 +49,50 @@ The matrix in \autoref{tab:added-delay} shows the delay added to the signal by v
 \label{tab:added-delay}
 \end{table}
 
-The centre column shows the effective delay added by the simple `time-based backlog' technique proposed below. It also applies to the variant of that technique called `size-adjusted thresholds' below. The right hand column shows another technique, which can be used where the ability of sojourn time to measure delay across a complex set of queues is required. Nonetheless, for a simple queue, the time-based backlog is preferable, because it always adds minimal measurement delay, but not so little that it becomes too sensitive to measurement errors.
+The centre column shows the effective delay added by the simple `Time-Based Backlog' technique proposed in \S\,\ref{sec:time-based_backlog}. It also applies to the variant of that technique called `Size-Adjusted Threshold' in \S\,\ref{sec:time-adj_thresh}. The right hand column shows the delay of a technique called `Scaled Sojourn Time' introduced in \S\,\ref{sec:scaled_svc_time}, which can be used where the ability of sojourn time to measure delay across a complex set of queues is required. Nonetheless, for a simple software queue, the time-based backlog is preferable, because it always adds minimal measurement delay.
 
 It can be clearly seen that applying a signal at enqueue adds \(t_s\) to the signal delay.
-So signalling at enqueue would only be appropriate if it were not possible to mark (or drop) a packet at the head of the queue, e.g.\ due to implementation or timing constraints.
+So applying the signal at enqueue would only be appropriate if it were not possible to mark (or drop) a packet at the head of the queue, e.g.\ due to implementation or timing constraints.
 
-The time-based backlog approach is similar to PIE, but \(t_r\) can be as low as the serialization time of 2 packets (and they do not have to be queued together). In contrast, the IETF specification of PIE recommends that the drain rate needs 16 packets to get a representative estimate, so \(t_r\) will be the time from the centre of this estimate, that is the time to dequeue 8 packets. Also PIE's measurement becomes stale whenever there are less than 16 packets in the queue. 
+% ----------------------------------------------------------------
+\subsection{The Blame Shifting Problem}\label{sec:fairer_marking}
 
-The sojourn time approaches apply down to a lone packet, but they take longer to measure whenever the queue is longer, e.g.\ during a burst.
-
-\section{Fairer Marking}\label{sec:fairer_marking}
-
-This section introduces fairness problems when existing AQM approaches mark flows with different degrees of burstiness. Then it uses a worked example to give better intuition for how to make marking fairer. The question of what marking is actually fair is deferred to a later discussion section (\S\,\ref{sec:marking_fairness_discuss}). Here the discussion is confined to removing obvious fairness problems, which is why the title is not `Fair Marking'.
-
-When the Random Early Detection (RED) AQM algorithm was first proposed fairness was one evaluation factor~\cite[\S\,8]{Floyd93:RED}, where fairness in the context of marking was defined as ``the fraction of marked packets for each connection is roughly proportional to that connection’s share of the bandwidth''\footnote{The paper went on to explain that ``RED gateways do not attempt to ensure that each connection receives the same fraction of the total throughput.'' Note: in the RED paper, `connection' meant a unidirectional flow.}.
+When the Random Early Detection (RED) AQM algorithm was first proposed, fairness was one evaluation factor~\cite[\S\,8]{Floyd93:RED}. Fairness in the context of marking was defined as ``the fraction of marked packets for each connection is roughly proportional to that connection’s share of the bandwidth''. 
 
 Such fairness would be sufficient if all flows were long lived and smooth, but they are not.  Wischik~\cite{Wischik99:Mark_Fairly} contrives a simple two-flow scenario to demonstrate how RED can shift nearly all the marking from a burst in one flow onto a smoother flow that continues after the burst. %In this scenario one flow usually sends at a lower rate than the other, but then suddenly causes congestion by sending faster for a brief period before returning to its lower rate. The queue smoothing algorithm within the RED AQM delays nearly all the congestion marking until after the congested period ends, when most arrivals are from the constant flow. 
 
 Classical AQMs like RED or more recent designs such as CoDel or PIE are designed to filter out variations in the queue over a likely maximum round trip. So they inherently introduce smoothing delay of about 100--200\,ms prior to signalling congestion, which is far too long to be able to mark packet bursts correctly. More recently, the importance of immediate congestion signalling has been recognized in approaches such as Data Center TCP (DCTCP~\cite{Alizadeh10:DCTCP}) and Low Latency Low Loss Scalable throughput (L4S~\cite{Briscoe16a:l4s-arch_ID}), where the job of smoothing out variations is shifted from the AQM to the sender.
 
-Nonetheless, we will now demonstrate that even the delay spent measuring sojourn time is enough to cause immediate marking to miss packet bursts, and hit smoother flows instead. 
+Marking fairness has been termed `shadow pricing'~\cite{Kelly98:Shadow_prices_prop_fair} or `cost fairness'~\cite{Briscoe06g:Rate_fair_Dis}, because it ensures the cost or harm to others of each user's behaviour can be measured. Note that marking fairness is an important mechanism requirement for all AQMs and should not be confused with flow-rate `fairness', which is an arbitrary policy choice concerning allocation of benefits at any instant (which is why `fairness' is placed in quotes in this latter case)\footnote{The RED paper went on to explain that ``RED gateways do not attempt to ensure that each connection receives the same fraction of the total throughput''.}. 
+
+This section introduces fairness problems when sojourn time is used to mark flows with different degrees of burstiness. Then it uses a worked example to give better intuition for how to make marking fairer. The question of what marking would actually be fair for different degrees of burstiness is deferred to a later discussion section (\S\,\ref{sec:marking_fairness_discuss}). 
+
+Nonetheless, we will now demonstrate that even the delay spent measuring sojourn time is enough to cause immediate marking to miss packet bursts, and hit smoother flows instead. Although we cannot yet say exactly what is fair, we can recognize this shift of blame, when one marking approach is significantly less fair than another.
 
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=\columnwidth]{marking-fairness}
-	\caption{The Marking Fairness Problem with the Sojourn metric (b) and the ECN marking outcomes of a Solution (c--d) (see text for commentary)}\label{fig:marking-fairness}
+	\caption{The Marking Fairness Problem with the Sojourn metric (b) and the ECN marking outcomes of a Solution (c--d). The dark red and dark grey packets below each x-axis indicate congestion-marked packets (see text for explanation and commentary).}\label{fig:marking-fairness}
 \end{figure}
 
-\autoref{fig:marking-fairness} shows a progression of four scenarios, reduced to their essentials by using equisized packets; one timeslot per delivered packet; a constant rate link; no congestion control; and a step ECN marking threshold. In the first three scenarios (a--c), two flows (grey and pink) fully utilize the link, consuming 80\% and 20\% each and the grey flow arrives in bursts that occupy half the queue delay threshold in the buffer. Below the progression of traffic scenarios is described, then the marking outcomes in a second pass:
+\autoref{fig:marking-fairness} shows how a packet queue behaves in a progression of four scenarios reduced to their essentials by using equal-sized packets; one timeslot per delivered packet; a constant rate link; a step ECN marking threshold (the dashed horizontal line); and high link utilization but without modelling the interaction with the sender's congestion control. 
+
+In the first three scenarios (a--c), two flows (grey and pink) fully utilize the link, consuming 80\% and 20\% each. Newly arriving packets have a border while packets already queued do not, as shown in the legend above the top scenario. In all the scenarios, the grey packets arrive in bursts, each the size of half the queue delay threshold in the buffer. Other aspects of the traffic and marking algorithm change over the progression of scenarios, as highlighted in bold in each row and described below:
 \begin{enumerate}[nosep, label=\alph*)]
-	\item This is the baseline case to show that the pink flow can fill the capacity left by the grey flow without exceeding the threshold, as long as it keeps its bursts small enough (in this case just 25\% of the threshold, making at most 75\% if one were to coincide with a grey burst). 
-	\item In this case, each burst from the pink flow occupies 200\% of the threshold in the buffer and arrives when one packet of a grey two-packet burst is left in the queue. The average rate of both flows is unchanged, so the link is still 100\% utilized, but the grey flow still arrives in the same pattern of small bursts. So, in the time the pink burst takes to drain, some grey bursts back up behind it and, while they are draining, more small grey bursts accumulate. So the queue only finally empties just as the cycle starts to repeat.
-	\item The arrivals in this scenario are identical to (b), but the marking algorithm is different (see later).
+	\item This is the baseline case to show that the pink flow can fill the capacity left by the grey flow without exceeding the threshold, as long as it keeps its bursts small enough (in this case just 25\% of the threshold, making at most 75\% if a pink burst were to coincide with a grey one). 
+	\item In this case, each burst from the pink flow occupies 200\% of the threshold in the buffer and happens to arrive when one packet of a grey two-packet burst is left in the queue. The average rate of both flows is unchanged, so the link is still 100\% utilized, and the grey flow still arrives in the same pattern of small bursts. So, in the time the pink burst takes to drain, some grey bursts back up behind it and, while they are draining, more small grey bursts accumulate. So the queue only finally empties just as the cycle starts to repeat with the arrival of the next pink burst.
+	\item The arrivals in this scenario are identical to (b), but sojourn-based queue measurement is replaced with expected service time (EST---described below).
 	\item In this last case, the pink flow stays unchanged at 20\% of the link and still in large bursts twice the depth of the threshold. However, the flow rate of the grey flow reduces from 80\% to 70\% of the link by halving every fourth burst. This is an attempt to represent the grey flow starting to respond to ECN marking, while the pink flow remains unresponsive.
 \end{enumerate}
-The ECN marking outcome of each is as follows:
+
+The ECN marking algorithm is identified in the box above each scenario:
+
+In scenario b) in \autoref{fig:marking-fairness}, each diagonal darker line traces the sojourn through the queue of those packets that arrive when the queue is above the threshold. The \textbf{sojourn time} of these packets will have exceeded the threshold so they will be marked on departure (shown under the axis as darker coloured packets). The proportion of marked packets of each colour is written under that.
+
+In scenarios c) or d) there are no diagonal lines, because the marking algorithm uses the \textbf{expected service time} of the queue based on its instantaneous depth at departure. So departing packets are marked (darker coloured) if the vertical height of the queue in the timeslot just before departure exceeds the threshold.
+
+In this second pass, we describe the ECN marking outcome from each scenario
+as follows:
 \begin{enumerate}[nosep, label=\alph*)]
 	\item There is no ECN marking in this baseline case (whatever the metric).
 	\item The sojourn times of 5/8 of the packets at the tail of the pink burst exceed the threshold. So the sojourn-based AQM marks 62.5\% of the pink packets at dequeue. Because grey packets back up behind the pink burst, then behind themselves, their sojourn time exceeds the threshold for the first 62.5\% (5/8) of the grey packets between each pair of pink bursts. Thus, the marking probability of the two flows is equal, even though the pink flow is a lot more bursty.
@@ -94,6 +105,40 @@ The wider space of scenarios like this has been investigated by varying the rela
 A smoother flow has smaller but more frequent arrival events compared to a bursty flow. So, although the bursty flow might happen to back up behind one of the smaller bursts of the smoother flow, multiple arrival events of the smoother flow will back up behind the larger burst. Therefore proportionately more of a bursty flow will be near the head of the buffer, and the packets of a smoother flow will be more likely to be occupying the tail.
 
 Therefore, marking the head packet when there is an excessive backlog behind it is likely to lead to fairer marking than marking the head packet because it had an excessive backlog in front of it (during its sojourn through the queue). 
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\columnwidth]{marking-fairness2}
+	\caption{TBA}\label{fig:marking-fairness2}
+\end{figure}
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\columnwidth]{fq-marking-fairness}
+	\caption{TBA}\label{fig:fq-marking-fairness}
+\end{figure}
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\columnwidth]{fq-marking-fairness2}
+	\caption{TBA}\label{fig:fq-marking-fairness2}
+\end{figure}
+
+% ================================================================
+\section{Implications of Unfair Marking}\label{sec:effects_unfair_marking}
+
+The section ``Underutilization with Bursty Traffic'' in \cite{Heist20:L4S_tests} injects large bursts of unresponsive traffic into a queue that applies immediate ECN marking above a shallow threshold based on the sojourn metric. When there is also smoothly paced traffic in the same queue, the bursts cause the AQM to focus ECN markings onto the smooth traffic, not the bursts (even though the bursts would not respond to them). This is a good example of a serious implication of unfair marking.
+
+The section ``Underutilization with Bursty Links'' in the same online collection of tests~\cite{Heist20:L4S_tests} shows a similar effect. When the traffic transmitted by a smooth link (e.g.\ fixed Ethernet) is mixed with traffic that has traversed a bursty link (e.g.\ WiFi), the bursty traffic causes a shallow immediate AQM to focus marking on the smooth traffic.
+
+TCP Segmentation Offload (TSO) in Linux (and possibly other OSs) groups a set of packet into a back-to-back burst and calculates the maximum packets in the burst from the current pacing rate of the flow:
+\begin{verbatim}
+    max\_burst = pacing\_rate * MAX\_BURST\_DELAY / MTU\_BITS.
+\end{verbatim}
+The flow's pacing rate is upper bounded by the link rate, so this ensures that the burst will not cause more than MAX\_BURST\_DELAY of queuing at the bottleneck. However, when a new flow starts, its pacing rate is typically well below the link rate and well below the pacing rate of any flows already established over the bottleneck link. Therefore new Linux flows consist of smaller bursts while established Linux flows consist of larger bursts. 
+
+If an AQM at the bottleneck is based on sojourn time and therefore marks larger bursts less than smaller bursts, new flows will attract more of the congestion marking. Then as a new flow tries to displace an established flow, it will tend to reach a point of local equilibrium before it has reached the same rate as the established flow. \todo{ToDo: Got to here - add figures from JM's paper}.
+
 
 % ================================================================
 \section{Solution: Expected Service Time}\label{sec:exp_svc_time}
@@ -431,7 +476,7 @@ From the earlier analysis of EST-based marking of traffic bursts (\S\,\ref{sec:m
 
 The goal of queue protection (QProt) is to try to eliminate bursty traffic from a shared low latency queue. The ability of EST-based marking to focus on bursts raises the possibility of a crude form of queue protection without having to identify layer-4 flows (in contrast to per-flow QProt specified for DOCSIS~\cite{Briscoe19b:q-prot_ID}).
 
-Here an example design for aggregate QProt is proposed, as an extension to the DualQ Coupled AQM. When a packet is about to be dequeued from the L queue, if the EST of the backlog behind it exceeds the maximum ECN-marking threshold\footnote{The step threshold, or the top of a ramp function.} by some margin, the head packet would be redirected to the back of the C queue.\footnote{Preferably by rearranging pointers, rather than moving the packet data.} The margin might be set, for instance, at twice the depth of the maximum marking threshold, or it might be slightly randomized to discouraging sources from `flying just under the radar'. Once redirection had started, it would continue until the EST at least reduced below the allowed margin, or preferably it could continue until the EST had been brought down to the maximum ECN marking threshold. 
+Here an example design for aggregate QProt is proposed, for instance as an extension to the DualQ Coupled AQM. When a packet is about to be dequeued from the L queue, if the EST of the backlog behind it exceeds the maximum ECN-marking threshold\footnote{The step threshold, or the top of a ramp function.} by some margin, the head packet would be redirected to the back of the C queue.\footnote{Preferably by rearranging pointers, rather than moving the packet data.} The margin might be set, for instance, at twice the depth of the maximum marking threshold, or it might be slightly randomized to discouraging sources from `flying just under the radar'. Once redirection had started, it would continue until the EST at least reduced below the allowed margin, or preferably it could continue until the EST had been brought down to the maximum ECN marking threshold. 
 
 Then, any large bursts would be more likely to be ejected from the L queue, while traffic keeping within the maximum ECN threshold would be more likely to remain in the L queue, without having to sit behind large bursts. Of course there is no guarantee that smooth traffic would not sometimes be redirected, when it happened to arrive in front of a burst. But smooth, well-behaved traffic should never build up behind a burst that had been large enough to be ejected from the L queue.
 
