@@ -72,78 +72,97 @@ Nonetheless, we will now demonstrate that even the delay spent measuring sojourn
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=\columnwidth]{marking-fairness5050}
-	\caption{The Marking Fairness Problem with the Sojourn metric (b) and the ECN marking outcomes of a Solution (c--d). The dark red and dark grey packets below each x-axis indicate congestion-marked packets (see text for explanation and commentary).}\label{fig:marking-fairness}
+	\caption{The Blame Shifting Problem and a way to solve it by replacing Sojourn Time with an Expected Service Time (EST) metric. %A time-series of the queue in a progression of simplified scenarios (a--d) is shown, with one change at a time, each highlighted in bold. a) is the baseline with grey:pink average arrival ratio of 50:50 and both with low burstiness. In both b) \& c) the two flows rates continue to average 50:50 but the pink flow arrives in larger, less frequent bursts. In c) the traffic is the same as b), but the marking algorithm is different; the dark red and dark grey packets below each x-axis indicate congestion-marked packets. Scenario d) illustrates the grey flow starting to respond to the congestion marking, while the pink flow remains unresponsive
+	ECN marking (shown as darker packets under each x-axis) ought to indicate which packets are most to blame for queuing. But in (b) uing a sojourn metric, the pink bursts cause grey packets to attract nearly as much marking as pink. In (c) \& (d), the expected service time metric better ensures that ECN marking reflects the blame for any queuing. See text for full explanation and commentary.}\label{fig:marking-fairness5050}
 \end{figure}
 
-\autoref{fig:marking-fairness} shows how a packet queue behaves in a progression of four scenarios reduced to their essentials by using equal-sized packets; one timeslot per delivered packet; a constant rate link; a step ECN marking threshold (the dashed horizontal line); and high link utilization but without modelling the interaction with the sender's congestion control. 
+\autoref{fig:marking-fairness5050} shows how a packet queue behaves in a progression of four scenarios reduced to their essentials by using equal-sized packets; one timeslot per delivered packet; a constant rate link; a step ECN marking threshold (the dashed horizontal line); and high link utilization; but without modelling the interaction with the sender's congestion control. 
 
-In the first three scenarios (a--c), two flows (grey and pink) fully utilize the link, consuming 80\% and 20\% each. Newly arriving packets have a border while packets already queued do not, as shown in the legend above the top scenario. In all the scenarios, the grey packets arrive in bursts, each the size of half the queue delay threshold in the buffer. Other aspects of the traffic and marking algorithm change over the progression of scenarios, as highlighted in bold in each row and described below:
+In the first three scenarios (a--c), two flows (grey and pink) fully utilize the link, consuming 50\% each. Newly arriving packets have a border while packets already queued do not, as shown in the legend above the top scenario. In all four scenarios, the grey packets arrive in small bursts, each the size of half the queue delay threshold. Other aspects of the traffic and marking algorithm change over the progression of scenarios, as highlighted in bold in each row of the figure and described below:
 \begin{enumerate}[nosep, label=\alph*)]
 	\item This is the baseline case to show that the pink flow can fill the capacity left by the grey flow without exceeding the threshold, as long as it keeps its bursts small enough (in this case just 25\% of the threshold, making at most 75\% if a pink burst were to coincide with a grey one). 
-	\item In this case, each burst from the pink flow occupies 200\% of the threshold in the buffer and happens to arrive when one packet of a grey two-packet burst is left in the queue. The average rate of both flows is unchanged, so the link is still 100\% utilized, and the grey flow still arrives in the same pattern of small bursts. So, in the time the pink burst takes to drain, some grey bursts back up behind it and, while they are draining, more small grey bursts accumulate. So the queue only finally empties just as the cycle starts to repeat with the arrival of the next pink burst.
+	\item In this case, each burst from the pink flow occupies 200\% not 25\% of the threshold in the buffer. The average rate of both flows is unchanged, so the link is still 100\% utilized, and the grey flow still arrives in the same pattern of small bursts. So, in the time the pink burst takes to drain, some of the smaller grey bursts back up behind it and, while they are draining, more small grey bursts accumulate. So the queue only finally empties just as the cycle starts to repeat with the arrival of the next pink burst.
 	\item The arrivals in this scenario are identical to (b), but sojourn-based queue measurement is replaced with expected service time (EST---described below).
-	\item In this last case, the pink flow stays unchanged at 20\% of the link and still in large bursts twice the depth of the threshold. However, the flow rate of the grey flow reduces from 80\% to 70\% of the link by halving every fourth burst. This is an attempt to represent the grey flow starting to respond to ECN marking, while the pink flow remains unresponsive.
+	\item In this last case, we attempt to represent the grey flow starting to respond to the ECN marking in (c), while the pink flow remains unresponsive at 50\% of the link and still arriving in large bursts twice the depth of the threshold. The flow rate of the grey flow reduces from 50\% to 37.5\% of the link or \(\sfrac{3}{4}\) of the rate of the pink flow.
 \end{enumerate}
 
-The ECN marking algorithm is identified in the box above each scenario:
+The ECN marking metric is written in the box above each scenario:
+\begin{description}
+	\item[Sojourn time:] In scenario b) in \autoref{fig:marking-fairness5050}, each diagonal darker line traces the sojourn through the queue of those packets that arrive when the queue is above the threshold. The service time or sojourn time of these packets will have exceeded the threshold so they will be marked on departure (shown under the axis as darker coloured packets). The proportion of marked packets of each colour is written under that.
 
-In scenario b) in \autoref{fig:marking-fairness}, each diagonal darker line traces the sojourn through the queue of those packets that arrive when the queue is above the threshold. The \textbf{sojourn time} of these packets will have exceeded the threshold so they will be marked on departure (shown under the axis as darker coloured packets). The proportion of marked packets of each colour is written under that.
+	\item[Expected Service Time:] In scenarios c) or d) there are no diagonal lines, because, rather than measuring the delay of the packet itself, EST measures the delay that a packet causes to others. Various ways in which EST has been or could be implemented will be given in \S\,\ref{sec:exp_svc_time}, but briefly, instead of marking a packet based on the queue in front of it, EST estimates the queue delay \textit{behind} a packet at the instant it departs. In the schematic, EST marks departing packets (darker coloured) if the vertical depth of the queue in the timeslot just before departure exceeds the threshold.\footnote{The EST algorithm uses queue delay, but in this simplified illustration queue depth represents delay because the drain rate is constant.}
+\end{description}
 
-In scenarios c) or d) there are no diagonal lines, because the marking algorithm uses the \textbf{expected service time} of the queue based on its instantaneous depth at departure. So departing packets are marked (darker coloured) if the vertical height of the queue in the timeslot just before departure exceeds the threshold.
-
-In this second pass, we describe the ECN marking outcome from each scenario
-as follows:
+In this second pass, we comment on the ECN marking outcome from each scenario:
 \begin{enumerate}[nosep, label=\alph*)]
 	\item There is no ECN marking in this baseline case (whatever the metric).
-	\item The sojourn times of 5/8 of the packets at the tail of the pink burst exceed the threshold. So the sojourn-based AQM marks 62.5\% of the pink packets at dequeue. Because grey packets back up behind the pink burst, then behind themselves, their sojourn time exceeds the threshold for the first 62.5\% (5/8) of the grey packets between each pair of pink bursts. Thus, the marking probability of the two flows is equal, even though the pink flow is a lot more bursty.
-	\item Here the evolution of the queue is identical to scenario (b), but marking is based on a metric we call `expected service time' rather than sojourn time. This will be fully explained in \S\,\ref{sec:exp_svc_time}, but for now it is enough to say that it marks a packet just before it is dequeued based on whether the backlog \emph{at that instant} is expected to need longer than the threshold to drain. This increases the pink marking probability from 62.5\% to 100\%. In contrast, marking shifts away from grey packets, as grey marking reduces from 62.5\% to 50\%.
-	\item As the load from grey traffic falls a little, the queue falls below the threshold considerably sooner, considerably reducing the grey marking probability. Indeed a reduction of the grey traffic by 1/8 reduces grey marking probability by more than 3/8 (from 50\% to below 29\%). Nonetheless, the AQM still marks 100\% of the pink packets, because the backed up grey packets still exceed the threshold for the whole period while the pink burst is draining.
+	\item The sojourn times of 5/8 of the packets at the tail of the pink burst exceed the threshold. So the sojourn-based AQM marks 62.5\% of the pink packets at dequeue. Because grey packets back up, first behind the pink burst then behind themselves, their sojourn times exceed the threshold for the first 50\% of the grey packets between each pair of pink bursts. Thus, the marking probability of the pink flow is only slightly greater than the grey, even though the pink flow's excessive burstiness is largely to blame for the queue exceeding the threshold.\footnote{Indeed, if each pink burst had happened to arrive one timeslot later, its marking would have been the same as the grey.}
+	\item Here the evolution of the queue is identical to scenario (b), but marking is based on the `Expected service time' (EST) metric described above. This increases the pink marking probability from 62.5\% to 100\%, because every pink packet in the burst has caused a queue to back up behind it. In contrast, EST only marks one grey packet in each pink burst cycle --- the one that the pink burst happens to arrive behind. Thus grey marking reduces to 12.5\%, compared to 50\% with the sojourn metric.
+	\item As the load from responsive grey traffic falls a little, after each unresponsive pink burst the queue falls below the threshold considerably sooner. This completely removes all grey marking, thus rewarding the grey flow for its responsiveness without too much under-utilization. The grey flow's response also reduces pink marking, but only to 75\%.
 \end{enumerate}
 
 The wider space of scenarios like this has been investigated by varying the relative shares and relative burst sizes between flows (see \S\,\ref{sec:marking_fairness_discuss}). Although the difference between the sojourn and expected service time metrics is sometimes less dramatic and sometimes more, the following intuition is generally true for all scenarios.
 
-A smoother flow has smaller but more frequent arrival events compared to a bursty flow. So, although the bursty flow might happen to back up behind one of the smaller bursts of the smoother flow, multiple arrival events of the smoother flow will back up behind the larger burst. Therefore proportionately more of a bursty flow will be near the head of the buffer, and the packets of a smoother flow will be more likely to be occupying the tail.
-
-Therefore, marking the head packet when there is an excessive backlog behind it is likely to lead to fairer marking than marking the head packet because it had an excessive backlog in front of it (during its sojourn through the queue). 
+A smoother flow has smaller but more frequent arrival events compared to a bursty flow. So, although the bursty flow might happen to back up behind one of the smaller bursts of the smoother flow, multiple arrival events of the smoother flow will back up behind the larger burst. Therefore proportionately more of a bursty flow will be near the head of the buffer, and the packets of a smoother flow will be more likely to be occupying the tail. Figures \ref{fig:marking-fairness8020} \& \ref{fig:marking-fairness8020_4} illustrate this general point with a couple of different example traffic models.
 
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=\columnwidth]{marking-fairness8020}
-	\caption{TBA}\label{fig:marking-fairness2}
+	\caption{The Blame Shifting Problem with a minority of bursty unresponsive traffic using the sojourn metric (pink), and a solution using an EST metric.}\label{fig:marking-fairness8020}
 \end{figure}
 
-\begin{figure}[h]
-	\centering
-	\includegraphics[width=\columnwidth]{fq-marking-fairness8020}
-	\caption{TBA}\label{fig:fq-marking-fairness}
-\end{figure}
+The grey:pink ratio in \autoref{fig:marking-fairness8020} is 80:20 rather than 50:50, but other aspects like burst sizes are the same as in \autoref{fig:marking-fairness5050}. \autoref{fig:marking-fairness8020}b) shows that the sojourn metric still allows the pink bursts to shift about half the blame for marking onto the grey flow. In contrast, EST marking (\autoref{fig:marking-fairness8020}c) again subjects the pink flow to the maximum possible blame (100\% marking). But this time the grey flow still attracts a little over 50\% marking, which reflects the greater proportion of the link that it consumes. Nonetheless, a slight grey reduction to \(\sfrac{7}{8}\) of its previous rate, reduces its marking to just over 30\%, while still subjecting the bursty pink flow to 100\% marking.
 
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=\columnwidth]{marking-fairness8020_4}
-	\caption{TBA}\label{fig:marking-fairness2}
+	\caption{The Blame Shifting Problem with the sojourn metric using two flows of equal burstiness; one continuous (grey); the other intermittent (pink). And a solution using an EST metric.}\label{fig:marking-fairness8020_4}
+\end{figure}
+
+The traffic model in \autoref{fig:marking-fairness8020_4} is similar to the grey:pink 80:20 case in \autoref{fig:marking-fairness8020} except the pink flow divides the one burst into four smaller bursts of the same size (50\% of the threshold) and paced at the same rate as the continual grey bursts. Sojourn-based marking results in the same 62.5\% pink marking probability as in Figures \ref{fig:marking-fairness5050} \& \ref{fig:marking-fairness5050}. But grey marking is slightly lower than either. This is because sojourn-based marking reflects `harm to self due to others packets' and there is less pink burstiness. In contrast, with EST (\autoref{fig:marking-fairness8020_4}c), pink marking is higher and grey is lower, but the improvement is not as pronounced as in \autoref{fig:marking-fairness8020}c). In \autoref{fig:marking-fairness8020}d), the grey traffic reduces its own marking considerably by reduces its average pacing rate a little, but without affording any benefit to the unresponsive pink traffic. 
+
+It may seem wrong that EST marks pink traffic more than grey, when pink paces at the same rate as grey but for less of the time. However, it is only the proportion of pink marking that is greater. In \autoref{fig:marking-fairness8020_4}c) there are four times as many grey packets as pink. So, even though pink marking approaches double the proportion of grey, the absolute number of pink markings is less then half that of grey. While the pink flow is active, the sum of pink and grey exceeds the link capacity, so EST `punishes' both equally. But then EST stops marking the rest of the grey traffic as a reward for allowing the queue to recover by underutilizing the link.
+
+So far, on the limited evidence of a few simple cases, we can draw the interim conclusion that marking the head packet when there is an excessive backlog behind it is likely to lead to fairer marking than marking the head packet because it experienced a backlog in front of it that held up its own sojourn through the queue. 
+
+% ----------------------------------------------------------------
+\subsection{Implications of Unfair Marking}\label{sec:effects_unfair_marking}
+
+The section ``Underutilization with Bursty Traffic'' in \cite{Heist20:L4S_tests} injects large bursts of unresponsive traffic into a queue that applies immediate ECN marking above a shallow threshold based on the sojourn metric. When there is also smoothly paced traffic in the same queue, the bursts cause the AQM to focus ECN markings onto the smooth traffic, not the bursts (even though the bursts would not respond to them). Thus, using the sojourn metric allows bursty traffic to shift the blame for the queuing it causes onto smooth traffic.
+
+This effect can be exploited to cause smoother traffic to yield more to bursty traffic. If the bursty traffic is also unresponsive itself (as it was in \cite{Heist20:L4S_tests}), it causes the smooth traffic to significantly underutilize the link. Thus, it is important to ensure that ECN marking reflects the blame for any queuing (\S\,\ref{sec:marking_fairness_definition} discusses how to quantify the apportionment of blame).
+
+The section ``Underutilization with Bursty Links'' in the same online collection of tests~\cite{Heist20:L4S_tests} shows a similar effect. When the traffic transmitted by a smooth link (e.g.\ fixed Ethernet) is mixed with traffic that has traversed a bursty link (e.g.\ WiFi), the bursty traffic causes a sojourn-based immediate AQM to shift its marking onto the smooth traffic.
+
+A common technique in congestion policing is to identify misbehaving traffic by the disproportionate amount of congestion marking that an AQM applies to it~\cite{Floyd99:Penalty_box}. Therefore, if an AQM fails to subject bursty traffic to a fair degree of marking, it will allow bursty traffic both to evade congestion policing and to fool the policer into punishing smoother traffic instead (see \S\,\ref{sec:qprot_marking_fairness} for a potential efficiency improvement to queue protection based on EST marking).
+
+TCP Segmentation Offload (TSO) in Linux (and possibly other OSs) groups a set of packet into a back-to-back aggregate or burst and calculates the maximum packets in a burst from the current pacing rate of the flow (in pkt/s):
+\begin{verbatim}
+  max_burst = pacing_rate * MAX_BURST_DELAY
+                             / MTU_BITS.
+\end{verbatim}
+The flow's pacing rate is upper bounded by the link rate, so this ensures that the burst will not cause more than MAX\_BURST\_DELAY of queuing delay at the bottleneck. However, when a new flow starts, its pacing rate is typically well below the link rate and well below the pacing rate of any flows already established over the bottleneck link. Therefore new Linux flows consist of smaller bursts while established Linux flows consist of larger bursts. 
+
+If an AQM at the bottleneck is based on sojourn time and therefore marks larger bursts less than smaller bursts, new flows will attract a higher congestion marking probability than established flows. Then as a new flow tries to displace an established flow, it will tend to reach a point of local equilibrium before it has reached the same rate as the established flow. Thus sojourn marking can lead to a \textbf{late-comer disadvantage}.
+
+\todo{ToDo: Got to here - add figures from Joakim's paper}.
+
+
+% ----------------------------------------------------------------
+\subsection{Per-Flow Queuing and Blame Shifting}\label{sec:fq-blame-shifting}
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\columnwidth]{fq-marking-fairness8020}
+	\caption{TBA}\label{fig:fq-marking-fairness8020}
 \end{figure}
 
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=\columnwidth]{fq-marking-fairness8020_4}
-	\caption{TBA}\label{fig:fq-marking-fairness2}
+	\caption{TBA}\label{fig:fq-marking-fairness8020_4}
 \end{figure}
 
-% ================================================================
-\section{Implications of Unfair Marking}\label{sec:effects_unfair_marking}
-
-The section ``Underutilization with Bursty Traffic'' in \cite{Heist20:L4S_tests} injects large bursts of unresponsive traffic into a queue that applies immediate ECN marking above a shallow threshold based on the sojourn metric. When there is also smoothly paced traffic in the same queue, the bursts cause the AQM to focus ECN markings onto the smooth traffic, not the bursts (even though the bursts would not respond to them). This is a good example of a serious implication of unfair marking.
-
-The section ``Underutilization with Bursty Links'' in the same online collection of tests~\cite{Heist20:L4S_tests} shows a similar effect. When the traffic transmitted by a smooth link (e.g.\ fixed Ethernet) is mixed with traffic that has traversed a bursty link (e.g.\ WiFi), the bursty traffic causes a shallow immediate AQM to focus marking on the smooth traffic.
-
-TCP Segmentation Offload (TSO) in Linux (and possibly other OSs) groups a set of packet into a back-to-back burst and calculates the maximum packets in the burst from the current pacing rate of the flow:
-\begin{verbatim}
-    max\_burst = pacing\_rate * MAX\_BURST\_DELAY / MTU\_BITS.
-\end{verbatim}
-The flow's pacing rate is upper bounded by the link rate, so this ensures that the burst will not cause more than MAX\_BURST\_DELAY of queuing at the bottleneck. However, when a new flow starts, its pacing rate is typically well below the link rate and well below the pacing rate of any flows already established over the bottleneck link. Therefore new Linux flows consist of smaller bursts while established Linux flows consist of larger bursts. 
-
-If an AQM at the bottleneck is based on sojourn time and therefore marks larger bursts less than smaller bursts, new flows will attract more of the congestion marking. Then as a new flow tries to displace an established flow, it will tend to reach a point of local equilibrium before it has reached the same rate as the established flow. \todo{ToDo: Got to here - add figures from JM's paper}.
 
 
 % ================================================================
@@ -367,7 +386,7 @@ As well as dropping or ECN-marking, different sanctions could be applied using t
 	The left-hand charts are the same as the right, except they exclude two scenarios that otherwise obscure the other plots}\label{fig:est-fairness-range}
 \end{figure*}
 
-\autoref{fig:est-fairness-range} shows the degree to which EST-based ECN marking is or is not focused onto the more bursty of a pair of flows indexed as \(a\) \& \(b\). Both flows were modelled as unresponsive in a time-slotted model similar to the example in \autoref{fig:marking-fairness}b). So the results are not necessarily an accurate reflection of a real AQM, but they should at least be indicative of the likely outcome.
+\autoref{fig:est-fairness-range} shows the degree to which EST-based ECN marking is or is not focused onto the more bursty of a pair of flows indexed as \(a\) \& \(b\). Both flows were modelled as unresponsive in a time-slotted model similar to the example in \autoref{fig:marking-fairness5050}b). So the results are not necessarily an accurate reflection of a real AQM, but they should at least be indicative of the likely outcome.
 
 The charts show the ECN marking level that results from scanning the scenario parameters across two dimensions:
 \begin{enumerate}
