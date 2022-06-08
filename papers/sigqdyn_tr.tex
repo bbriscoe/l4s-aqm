@@ -69,6 +69,8 @@ own         % Defines \newboolean{twocol}
 
 \graphicspath{{images/}}
 
+\newcommand{\pluseq}{\mathrel{+}=}
+
 % Preamble metadata---------------------------------------------------
 \newcommand*{\metaauthori}{Bob Briscoe}
 \newcommand*{\metaauthorii}{}
@@ -186,9 +188,10 @@ own         % Defines \newboolean{twocol}
 \bibliography{aqm-details}}
 
 % ----------------------------------------------------------------
-%\clearpage
+\clearpage
 %\twocolumn%
-%\appendix
+\appendix
+\input{sigqdyn_tr_sst-data}      % Scale Sojourn Time: Details
 %\onecolumn%
 % ----------------------------------------------------------------
 %TODO

@@ -2,15 +2,19 @@
 % ================================================================
 \section{Solution: Expected Service Time}\label{sec:exp_svc_time}
 
-Two approaches will be proposed to minimize signalling delay. Both start with the backlog measured instantaneously at dequeue, then translate it into the expected time needed to drain this backlog---thus both measure the `expected service time':
+As already explained, to minimize control path delay and consequently to minimize the blame shifting problem for an immediate AQM, the metric to measure the queue needs to base packet marking on the delay that each packet causes to other packets, not on the delay other packets cause to it. So we need to measure the queue backed up behind the packet about to be marked, not in front of it. But we still need to measure the queue in time units, not bytes or packets, so that any AQM algorithm is robust to varying link rate.
+
+Two approaches will be proposed . Both start with the backlog measured instantaneously at dequeue, then translate it into the expected time needed to drain this backlog---thus both measure the `expected service time':
 \begin{itemize}[nosep]
 	\item Time-based backlog;
 	\item Scaled sojourn time.
 \end{itemize}
 
+EST is not a new idea --- many AQMs measure queue delay in a similar way. The difference is that previously the way to measure delay was just thought to be a question of expediency. Whereas we now better understand the principles that determine what to do, and what not to do.
+
 \subsection{Time-Based Backlog}\label{sec:time-based_backlog}
 
-In this approach, as each packet is about to be dequeued from the head of the queue, the. expected service time to clear the backlog behind it is calculated as
+In this approach, as each packet is about to be dequeued from the head of the queue, the expected service time to clear the backlog behind it is calculated as
 \[\mathbb{E}(\mathrm{svc\_time}) = \mathrm{(backlog\_deq)}\times \frac{\mathrm{avg\_serializn\_time}}{\mathrm{(avg\_pkt\_size)}},\]
 or in English, the expected service time, \(t_b^*\), to clear the backlog is the backlog at dequeue, \(b\) (e.g.\ in bytes), multiplied by the recent average serialization time of each packet, \(t_s^*\) and divided by the recent average packet size (in bytes), \(s^*\).
 
@@ -18,8 +22,8 @@ Multiplying by the quotient on the right is the same as dividing by the average 
 
 For instance, assuming the times when dequeue of the previous packet started and ended were stored as \(t_1\) \& \(t_2\) and the packet size was \(s\), the EWMAs would be updated as
 \begin{align}
-	t_s^* &= g\left((t_2-t_1) - t_s^*\right)\notag\\
-	s^*   &= g(s - s^*)\notag
+	t_s^* &\pluseq g\left((t_2-t_1) - t_s^*\right)\notag\\
+	s^*   &\pluseq g(s - s^*)\notag
 \intertext{The expected time to clear the backlog is then,}
 	t_b^* &= b * t_s^* / s^*.\label{eqn:t-based_backlog}
 \end{align}
@@ -31,17 +35,15 @@ Note that any media acquisition delay should not be counted, and the backlog tha
 
 \subsubsection{Rationale for Time-Based Backlog}\label{sec:time-based_backlog_justify}
 
-The time-based backlog approach assumes that the drain rate to clear the backlog will be similar to that averaged over the last few packets. There is no reason to believe that the recent drain rate is the best estimate of the rate at which the backlog will drain. For instance, a radio link is continually testing different rates to find which is the best and if a queue is continually yielding to a higher priority queue, it will proceed in fits and starts. However, for the purpose of signalling congestion, the recent drain rate gives the best available estimate of the time to drain the backlog, which itself was a result of the recent drain rate.
+The time-based backlog approach assumes that the drain rate to clear the backlog will be similar to that averaged over the last few packets. There is no good reason to believe that the recent drain rate is a good estimator of the drain rate in the near future.\footnote{For instance, a radio link is continually testing different rates to find which is the best and if a queue is continually yielding to a higher priority queue, it will proceed in fits and starts.} However, for the purpose of signalling congestion, the recent drain rate gives the best available estimate of the time to drain the backlog, which itself was a result of the recent drain rate.
 
-It should be pointed out that sojourn time also measures the drain rate over the last few packets. But it is indisputable that it is better to use a recent drain rate to estimate how fast the current backlog will drain, rather than just measuring how long it took an earlier backlog to drain that happened to be in front of the head packet when it arrived---while ignoring the current backlog.
+It should be pointed out that sojourn time also measures the drain rate over the last few packets. But we have already shown that it ignores the current backlog \emph{behind} the head packet.
 
-One might consider estimating the recent drain rate from the size of just the single most recent head packet and the time to dequeue it. However, such an approach is prone to errors due to coarse clock precision or interruptions affecting access to the clock. By using EWMAs, any such errors should average out, while using a high gain keeps the measurement lag down to about two packets.
-
-The time-based backlog approach is similar to that used in PIE, except with PIE the backlog is divided by the average drain rate over sixteen contiguous packets, and whenever the queue is not that long, the last available average rate is used.
+One might consider estimating the recent drain rate from the size of just the single most recent head packet and the time to dequeue it. However, such an approach is prone to errors due to coarse clock precision or interruptions affecting access to the clock. By using EWMAs, any such errors should average out, while using a high gain (about \(\sfrac{1}{2}\)) keeps the measurement lag down to about two packets.\footnote{The approach in PIE is similar, except it averages the drain rate over sixteen contiguous packets, and whenever the queue is not that long, the last available average rate is used.}
 
 \subsubsection{Size-Adjusted Threshold(s)}\label{sec:time-adj_thresh}
 
-The following technique is really just an optimization of the time-based backlog. It avoids the per-packet division in \autoref{eqn:t-based_backlog} above.
+The following technique is an optimization of the time-based backlog. It avoids the per-packet division in \autoref{eqn:t-based_backlog} above.
 
 It is easiest to explain with an example AQM algorithm. Say, for instance that the AQM marks packets if queuing delay exceeds a simple step threshold, \(T\). Then, as each packet is dequeued, instead of comparing the time-based backlog with the threshold queuing delay, the AQM marks a packet if
 \begin{equation}
@@ -51,17 +53,17 @@ In other words, instead of using the average packet size to scale down the backl
 
 A similar approach would be used for other AQM functions. For instance, if the likelihood of marking increases by a linear ramp function, both the min and max thresholds of the ramp would be scaled up by \(s^*\).
 
-An alternative optimization would be to ammortize the per packet calculation over a certain number of packets by accumulating the combined dequeue times of a certain number of packets and accumulating the sum of their sizes. Then every so often updating the two EWMAs, and calculating \(s^* * T / t_s^*\) to give a new threshold in bytes to compare the backlog against. However, the per-packet processing cost of the original size-adjustment is already fairly minimal (two adds, a bit-shift and two integer-multiplies).
+%An alternative optimization would be to ammortize the per packet calculation over a certain number of packets by accumulating the combined dequeue times of a certain number of packets and accumulating the sum of their sizes. Then every so often updating the two EWMAs, and calculating \(s^* * T / t_s^*\) to give a new threshold in bytes to compare the backlog against. However, the per-packet processing cost of the original size-adjustment is already fairly minimal (two adds, a bit-shift and two integer-multiplies).
 
 \subsection{Scaled Sojourn Time}\label{sec:scaled_svc_time}
 
 Another approach would be to scale the sojourn time by the ratio of the backlogs at dequeue and enqueue. That is, the expected service time at any instant would be:
 \[\mathbb{E}(\mathrm{svc\_time}) = \mathrm{sojourn\_time} \times \frac{\mathrm{backlog\_deq}}{\mathrm{backlog\_enq}},\]
-where \(\mathrm{backlog\_enq}\) can be written into the packet's metadata at enqueue, along with the arrival time, which is how sojourn time is already implemented.
+where \(\mathrm{backlog\_enq}\) can be written into the packet's metadata at enqueue (along with the arrival time, which is already written at enqueue in existing sojourn implementations).
 
 \subsubsection{Rationale for Scaling Sojourn Time}\label{sec:inst_svc_time_justify}
 
-Scaled sojourn time is comparable to the above `time-based backlog' approach, but with the drain rate measured over the sojourn time of each head packet, which is equivalent to \(\mathrm{backlog\_enq}/\mathrm{sojourn\_time}\). There are two disadvantages, but one advantage, to measuring over a sojourn time.
+Scaled sojourn time is comparable to the above `time-based backlog' approach, but with the drain rate measured over the sojourn time of each head packet, which is equivalent to \(\mathrm{backlog\_enq}/\mathrm{sojourn\_time}\). There are two disadvantages, and one advantage, to measuring over a sojourn time.
 \begin{description}
 	\item[Disadvantage 1:] The measurement delay depends on the queuing delay, which makes it problematic to signal bursts quickly;
 	\item[Disadvantage 2:] Each sojourn measurement is sensitive to errors reading the clock and, when the ratio of the backlogs is large, as it is during a burst, any error will be greatly magnified;
@@ -72,81 +74,7 @@ Scaled sojourn time would not normally be of interest because of the two disadva
 
 Scaling the sojourn time might also make more sense if an implementation is already measuring the sojourn time for another reason. Then it will not need any additional measurement code, because it might already need to maintain the backlogs to do basic queue handling.
 
-\begin{figure}[h]
-	\centering
-	\includegraphics[width=\columnwidth]{scaled-sojourn}
-	\caption{Rationale for Scaling Sojourn Time}\label{fig:scaled-sojourn}
-\end{figure}
-
-\autoref{fig:scaled-sojourn} visualizes a geometric interpretation of the rationale for scaling the sojourn time. The two plots in the chart at the top of the figure show cumulative arrivals and departures of data in packets. Between times \(t_0\) and \(t_1\) a burst of packets arrives and between \(t_1\) and \(t_2\) a few packets arrive at first, then none. Over the whole time the departure rate is varying independently as, for example, a radio link would. At any time, for instance \(t_1\), the sojourn time  (\(t_{s1}\)) can be visualized as the horizontal distance back from the departures plot to the arrivals plot. And the backlog is shown as the vertical distance between the plots (\(b_1\)).
-
-It can be seen that the sojourn time (\(t_{s1}\)) between \(t_0\) and \(t_1\) takes account of the departure rate, but not the arrival rate (the burst), during that time. It is proposed to scale the sojourn time by the ratio of the backlogs at departure and arrival of the packet. That is \(t_{s1}^* = t_{s1} b_1/b_0\). This scaled sojourn time uses all the latest information available at time \(t_1\). 
-
-The schematic in the middle of the figure shows, using similar triangles, how scaled sojourn time is constructed.  The departure rate during the sojourn is represented by the slope of the smaller of the middle triangle. The larger triangle extrapolates that departure rate to predict the time (\(t_{s1}^*\)) that it will take for the most recent backlog to drain.
-
-The lower schematic shows the situation at time \(t_2\). The actual sojourn time of the new head packet \(t_{s2}\) is slightly shorter than the prediction \(t_{s1}^*\). From this new actual sojourn time, a new prediction can now be constructed  from the slightly steeper rate slope. This time the backlog \(b_2\) has reduced  during the sojourn of the head packet, because there has been a lull in arrivals since \(t_1\). Therefore the formula predicts that the sojourn time will be scaled down relative to its measured value.
-
-We will now return to time \(t_1\) and derive the scaled sojourn time algebraically, rather than geometrically. The departure rate during the sojourn of the head packet is
-\begin{align}
-	r_{d1} &= \frac{b_0}{t_{s1}}.\label{eqn:drate}
-\intertext{The expected service time to drain the backlog at \(t_1\) is}
-	t_{s1}^* &= \frac{b_1}{r_{d1}}.\notag
-\intertext{Substituting from \autoref{eqn:drate}:}
-				&= t_{s1} \frac{b_1}{b_0}.\label{eqn:sojourn}
-\end{align}
-
-The expected service time can also be expressed in terms of a ratio of average arrival and departure rates during the sojourn, \(r_{a1}\) and \(r_{d1}\). The backlog at \(t_1\) can be expressed in terms of the arrival rate over the sojourn time:
-\begin{align}
-	b_1 &= t_{s1} r_{a1}.\label{eqn:backlog}
-\intertext{Substituting this into \autoref{eqn:sojourn}, the scaled sojourn time at \(t_1\),}
-	t_{s1}^* &= t_{s1} \frac{r_{a1}}{r_{d1}}
-\end{align}
-That is, scaling the sojourn time by the ratio between the backlogs at dequeue and enqueue is equivalent to scaling it by the ratio between the average arrival and departure rates between enqueue and dequeue.
-
-\subsubsection{Implementing Scaled Sojourn Time}\label{sec:inst_svc_time_impl}
-
-To implement scaling of the sojourn time, it is probably easiest to store \texttt{backlog\_enq} in the packet's metadata when the packet is enqueued. Then at dequeue it can be divided into \texttt{backlog\_deq}. 
-
-But some implementations choose not to do too much at dequeue, because there is limited time between the packet reaching the head of the queue and starting to be forwarded. Therefore, it could be challenging to measure the system time, subtract the stored timestamp then also scale the result by a ratio.
-
-The division in the ratio can be avoided by in at least two ways:
-\begin{itemize}[nosep]
-	\item Multiply the threshold(s) of the AQM by \texttt{backlog\_enq} rather than dividing it into \texttt{backlog\_deq} (as in \S\,\ref{sec:time-adj_thresh});
-	\item Use the techniques below to optimize execution, although efficiency will be machine-architecture-dependent, and precision is only to the nearest binary order of magnitude:
-\end{itemize}
-
-{\small\texttt{qdelay <<= (lg(backlog\_deq) - lg(backlog\_enq)\\+ 1/2)}}\\
-It is roughly equivalent to multiplying by the ratio between the backlogs, to the nearest integer power of 2.
-
-The \texttt{<<=} operator bit-shifts \texttt{qdelay} to the left by the expression on the right. \texttt{lg()} is the logarithm function base 2. The expression bit-shifts \texttt{qdelay} to the left by the difference between the logs of the backlogs at enqueue and dequeue. The addition of 1/2 is necessary so that integer truncation of the result will round to the nearest integer, rather than always rounding down. 
-
-The \texttt{clz()} function to count leading zeros could be used as a cheaper but more approximate base-2 log function, as follows:\\
-{\small\texttt{qdelay <<= (clz(backlog\_enq) - clz(backlog\_deq))}}\\
-This also avoids the need for any boundary checking code.
-
-For example, if the \texttt{backlog\_*} variables are 32-bit unsigned integers and
-\begin{itemize}[nosep]
-	\item[] \texttt{backlog\_enq = 3000}, so \texttt{clz(3000)=20}
-	\item[] \texttt{backlog\_deq = 30000}, so \texttt{clz(30000)=17}
-\end{itemize}
-Then
-\begin{itemize}[nosep]
-	\item[] \texttt{qdelay <<= 20 - 17}
-\end{itemize}
-is the same as
-\begin{itemize}[nosep]
-    \item[] \texttt{qdelay *= 2\^{}3},\\
-\end{itemize}
-which scales qdelay by 8, which approximates to \texttt{30,000/3,000 = 10} but is an integer power of 2. This is sufficient to scale the sojourn time to the correct binary order of magnitude, while still taking account of all the latest information in the queue.
-
-However, \texttt{clz()} introduces truncation bias because it always rounds down, which could lead the result to be persistently out by up to \(\times2\) or \(/2\) for a particular target sojourn time. Using the \texttt{lg()}-based expression could be out by from \(\sqrt{2}\) to \(1/\sqrt{2}\), but with no bias---it is equally likely to be out either way.
-
-A high performance implementation will maintain the backlog of a queue by maintaining two variables (much like the two plots at the top of \autoref{fig:scaled-sojourn}):
-\begin{itemize}[nosep]
-	\item[] \texttt{count\_enq} written solely by the enqueue routine;
-	\item[] \texttt{count\_deq} written solely by the dequeue routine
-\end{itemize}	
-Then the backlog can be measured as \texttt{count\_enq - count\_deq}. These two shared variables can be read from any routine, but they are only incremented by the routine that owns them, which avoids the performance hit of a mutual exclusion lock. The two counters monotonically increase like the system clock for the sojourn measurement, but at the rate of data transfer in and out respectively, not the rate of time passing. 
+Geometric and algebraic analysis of scaled sojourn time as well as ideas for efficient implementation of the division are given in \autoref{sec:scaled_sojourn_details}
 
 \subsection{Distributed Queues}\label{sec:sojourn-distrib}
 
