@@ -126,27 +126,9 @@ It may seem wrong that EST marks pink traffic more than grey, when pink paces at
 So far, on the limited evidence of a few simple cases, we can draw the interim conclusion that marking the head packet when there is an excessive backlog behind it is likely to lead to fairer marking than marking the head packet because it experienced a backlog in front of it that held up its own sojourn through the queue. 
 
 % ----------------------------------------------------------------
-\subsection{Blame Shifting and Per-Flow Queueing}\label{sec:fq_blame_shifting}
-
-\todo[inline]{Add text explaining figures}
-
-\begin{figure}[h]
-	\centering
-	\includegraphics[width=\columnwidth]{fq-marking-fairness8020}
-	\caption{TBA}\label{fig:fq-marking-fairness8020}
-\end{figure}
-
-\begin{figure}[h]
-	\centering
-	\includegraphics[width=\columnwidth]{fq-marking-fairness8020_4}
-	\caption{TBA}\label{fig:fq-marking-fairness8020_4}
-\end{figure}
-
-
-% ----------------------------------------------------------------
 \subsection{Implications of Unfair Marking}\label{sec:effects_unfair_marking}
 
-The section ``Underutilization with Bursty Traffic'' in \cite{Heist20:L4S_tests} injects large bursts of unresponsive traffic into a queue that applies immediate ECN marking above a shallow threshold based on the sojourn metric. When there is also smoothly paced traffic in the same queue, the bursts cause the AQM to focus ECN markings onto the smooth traffic, not the bursts (even though the bursts would not respond to them). Thus, using the sojourn metric allows bursty traffic to shift the blame for the queuing it causes onto smooth traffic.
+The section ``Underutilization with Bursty Traffic'' of Heist and Morton's write-up \cite{Heist20:L4S_tests} injects large bursts of unresponsive traffic into a queue that applies immediate ECN marking above a shallow threshold based on the sojourn metric. When there is also smoothly paced traffic in the same queue, the bursts cause the AQM to focus ECN markings onto the smooth traffic, not the bursts (even though the bursts would not respond to them). Thus, using the sojourn metric allows bursty traffic to shift the blame for the queuing it causes onto smooth traffic.
 
 This effect can be exploited to cause smoother traffic to yield more to bursty traffic. If the bursty traffic is also unresponsive itself (as it was in \cite{Heist20:L4S_tests}), it causes the smooth traffic to significantly underutilize the link. Thus, it is important to ensure that ECN marking reflects the blame for any queuing (\S\,\ref{sec:marking_fairness_definition} discusses how to quantify the apportionment of blame).
 
@@ -163,5 +145,23 @@ The flow's pacing rate is upper bounded by the link rate, so this ensures that t
 
 If an AQM at the bottleneck is based on sojourn time and therefore marks larger bursts less than smaller bursts, new flows will attract a higher congestion marking probability than established flows. Then as a new flow tries to displace an established flow, it will tend to reach a point of local equilibrium before it has reached the same rate as the established flow. Thus sojourn marking can lead to a \textbf{late-comer disadvantage}.
 
-\todo[inline]{ToDo: Got to here - add figures from Joakim's paper}.
+\bob{ToDo: Got to here - add figures from Joakim's paper}.
+
+% ----------------------------------------------------------------
+\subsection{Blame Shifting and Per-Flow Queueing}\label{sec:fq_blame_shifting}
+
+\bob{Add text explaining figures}
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\columnwidth]{fq-marking-fairness8020}
+	\caption{The Blame Shifting Problem with a minority of bursty unresponsive traffic using the sojourn metric (pink), and a solution using an EST metric.}\label{fig:fq-marking-fairness8020}
+\end{figure}
+
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\columnwidth]{fq-marking-fairness8020_4}
+	\caption{TBA}\label{fig:fq-marking-fairness8020_4}
+\end{figure}
+
 
