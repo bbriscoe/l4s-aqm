@@ -111,7 +111,9 @@ A smoother flow has smaller but more frequent arrival events compared to a burst
 	\caption{The Blame Shifting Problem with a minority of bursty unresponsive traffic using the sojourn metric (pink), and a solution using an EST metric.}\label{fig:marking-fairness8020}
 \end{figure}
 
-The grey:pink ratio in \autoref{fig:marking-fairness8020} is 80:20 rather than 50:50, but other aspects like burst sizes are the same as in \autoref{fig:marking-fairness5050}. \autoref{fig:marking-fairness8020}b) shows that the sojourn metric still allows the pink bursts to shift about half the blame for marking onto the grey flow. In contrast, EST marking (\autoref{fig:marking-fairness8020}c) again subjects the pink flow to the maximum possible blame (100\% marking). But this time the grey flow still attracts a little over 50\% marking, which reflects the greater proportion of the link that it consumes. Nonetheless, a slight grey reduction to \(\sfrac{7}{8}\) of its previous rate, reduces its marking to just over 30\%, while still subjecting the bursty pink flow to 100\% marking.
+The grey:pink ratio in \autoref{fig:marking-fairness8020} is 80:20 rather than 50:50, but other aspects like burst sizes are the same as in \autoref{fig:marking-fairness5050}. \autoref{fig:marking-fairness8020}b) shows that the sojourn metric still allows the pink bursts to shift about half the blame for marking onto the grey flow. In contrast, EST marking (\autoref{fig:marking-fairness8020}c) again subjects the pink flow to the maximum possible blame (100\% marking). But this time the grey flow still attracts a little over 50\% marking, which reflects the greater proportion of the link that it consumes. 
+
+Nonetheless, a slight grey reduction to \(\sfrac{7}{8}\) of its previous rate (\autoref{fig:marking-fairness8020}d), reduces its marking to just over 30\%, while still subjecting the bursty pink flow to 100\% marking. With sojourn marking, the same reduction by the grey flow would have reduced its marking to 37.5\% (not shown). So by shifting less blame to the grey flow, EST will lead to less underutilization than sojourn in steady state. EST also continues to attribute a higher degree of blame to the unresponsive pink bursts (100\% marking). Also, a congestion policer driven by EST marking would discriminate between the flows better than if driven by sojourn.
 
 \begin{figure}[h]
 	\centering
@@ -145,23 +147,37 @@ The flow's pacing rate is upper bounded by the link rate, so this ensures that t
 
 If an AQM at the bottleneck is based on sojourn time and therefore marks larger bursts less than smaller bursts, new flows will attract a higher congestion marking probability than established flows. Then as a new flow tries to displace an established flow, it will tend to reach a point of local equilibrium before it has reached the same rate as the established flow. Thus sojourn marking can lead to a \textbf{late-comer disadvantage}.
 
-\bob{ToDo: Got to here - add figures from Joakim's paper}.
+\bob{Add figures from Joakim's paper}.
 
 % ----------------------------------------------------------------
 \subsection{Blame Shifting and Per-Flow Queueing}\label{sec:fq_blame_shifting}
 
-\bob{Add text explaining figures}
+\begin{figure}[h]
+	\centering
+	\includegraphics[width=\columnwidth]{fq-marking-fairness5050}
+	\caption{Per-flow queuing (FQ) provides isolation for the grey flow from the pink bursts in the simple case of 50:50 capacity shares. Each timeslot shows only the flow-queue being served in that slot. Note that the visualization of the marking threshold is no longer useful, because the height of each queue no longer represents its delay when more than one queue is being served.}\label{fig:fq-marking-fairness5050}
+\end{figure}
+
+Heist and Morton \cite{Heist20:L4S_tests} suggest that per-flow queuing (FQ) would probably provide isolation for smooth flows from bursts. This could be true in some cases, such as the case with a more bursty pink flow sharing capacity 50:50 with a smoother flow, as shown in \autoref{fig:fq-marking-fairness5050}. Here, irrespective of whether marking is sojourn or EST-based, 75\% is focused on the pink bursts, and none on the grey flow.
 
 \begin{figure}[h]
 	\centering
 	\includegraphics[width=\columnwidth]{fq-marking-fairness8020}
-	\caption{The Blame Shifting Problem with a minority of bursty unresponsive traffic using the sojourn metric (pink), and a solution using an EST metric.}\label{fig:fq-marking-fairness8020}
+	\caption{FQ does not isolate the smooth grey flow from the pink bursts when their capacity shares are 80:20. FQ paces the burst better than a FIFO, but it still makes the grey flow queue up behind the burst, which it would not have done if the pink flow had arrived evenly paced. EST-based marking (b) shifts somewhat less blame onto the smooth grey flow than sojourn (a).}\label{fig:fq-marking-fairness8020}
 \end{figure}
 
-\begin{figure}[h]
+However, Figures \ref{fig:fq-marking-fairness8020} \& \ref{fig:fq-marking-fairness8020_4} show that isolation between flows breaks down for the 80:20 traffic models introduced earlier in Figures \ref{fig:marking-fairness8020} \& \ref{fig:marking-fairness8020_4}. Note here that, when grey packets arrive in a timeslot when pink packets are being served, they are shown queuing behind the pink queue (to show the slot when their sojourn timer starts), but they are then shifted into the correct queue in the next slot.
+
+\autoref{fig:fq-marking-fairness8020}a) illustrates that this is because the scheduler serves the grey flow more slowly until it has delivered the whole of the pink burst. So the grey flow queues up and the sojourn-based AQM marks about 56\% of the grey packets, even though it would have marked zero grey if the pink flow had also been smoothly paced.
+
+EST (\autoref{fig:fq-marking-fairness8020}b) marks the grey flow slightly less than sojourn (50\% compared to 56\%). If, as before, grey reduces its rate from 80\% to 70\% of capacity  (\autoref{fig:fq-marking-fairness8020}c), EST reduces grey marking considerably to 28.6\%. We assume that the EST marking approach for FQ introduced in \S\,\ref{sec:fq_delay_metric} is applied.
+
+In all three cases (a--c), grey marking with FQ is a little lower than in the equivalent FIFO case in \autoref{fig:marking-fairness8020}, because of FQ's ability to pace the burst. In contrast, pink marking is much less consistently related to the equivalent FIFO cases; with FQ marking is 75\% in all three cases, whereas with a FIFO it is lower (62.5\%) with sojourn marking and much higher (100\%) in both EST cases. This is because FQ isolates the pink burst from whatever the grey flow does, and a burst on its own is marked the same whether based on sojourn or EST.
+
+\begin{figure}
 	\centering
 	\includegraphics[width=\columnwidth]{fq-marking-fairness8020_4}
-	\caption{TBA}\label{fig:fq-marking-fairness8020_4}
+	\caption{FQ's (lack of) isolation of the grey flow from the pink is unchanged, even if the pink flow paces its burst at the same rate as the grey, but for a quarter of the time.}\label{fig:fq-marking-fairness8020_4}
 \end{figure}
 
-
+To complete the comparison, \autoref{fig:fq-marking-fairness8020_4} shows how FQ handles the case where the pink flow is paced at the same rate as the grey, but for only a quarter of the time. Still FQ does not isolate the grey flow from this much milder form of pink burstiness. Indeed, the grey queue and its marking is identical to the case where the pink burst all arrives in one timeslot. Nonetheless, pink marking is reduced to 50\%, which remains unchanged irrespective of the metric and irrespective of whether the grey flow reduces its rate.
