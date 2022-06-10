@@ -72,6 +72,8 @@ Scaled sojourn time is comparable to the above `time-based backlog' approach, bu
 
 This last point will now be stated more precisely so that it can be determined whether it is critical given a particular system's clock precision. We assume that packets are being dequeued contiguously (which is not always the case). If the error of one clock reading is \(\varepsilon\), that will contribute \(+\varepsilon\) of error to the preceding sojourn and \(-\varepsilon\) to the subsequent sojourn. The worst case scaled error will occur if the first sojourn is for the first packet of a burst of \(N\) packets. Then the scaled sojourn algorithm inflates the first error to \(N\varepsilon\), and the second to \(-(N-1)\varepsilon/2\). Thus, rather than one error combining with the next to cancel each other out, the combined error becomes the sum of these two; that is \((N+1)\varepsilon/2\).
 
+For instance, a clock reading error of \(10\,\mu\)s after the first packet of a burst of 15 packets could be inflated to \(80\,\mu\)s by the sojourn scaling algorithm, with no prospect of being cancelled out by a future reading.
+
 Scaled sojourn time would not normally be of interest because of the two disadvantages. However, where an existing deployment or a complex queue structure makes the other approaches infeasible, the advantage of scaled sojourn time might outweigh these disadvantages (but see \S\,\ref{sec:sojourn-distrib}).
 
 Scaling the sojourn time might also make more sense if an implementation is already measuring the sojourn time for another reason. Then it might not need to make any additional measurements, if we assume it already maintains the backlogs to do basic queue handling.
