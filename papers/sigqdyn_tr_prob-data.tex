@@ -44,9 +44,9 @@ The matrix in \autoref{tab:added-delay} shows the delay added to the signal by v
 	at enq  & \(2t_s\)	& \(t_r + t_s\)	& \(3t_s/2\)\\
 	at deq  & \(t_s\)	& \(t_r\)			& \(t_s/2\)
 \end{tabular}
-\end{center}
 \caption{Delay added to congestion signal by three different measurement techniques}%
 \label{tab:added-delay}
+\end{center}
 \end{table}
 
 The centre column shows the effective delay added by the simple `Time-Based Backlog' technique proposed in \S\,\ref{sec:time-based_backlog}. It also applies to the variant of that technique called `Size-Adjusted Threshold' in \S\,\ref{sec:time-adj_thresh}. The right hand column shows the delay of a technique called `Scaled Sojourn Time' introduced in \S\,\ref{sec:scaled_svc_time}, which can be used where the ability of sojourn time to measure delay across a complex set of queues is required. Nonetheless, for a simple software queue, the time-based backlog is preferable, because it always adds minimal measurement delay.
