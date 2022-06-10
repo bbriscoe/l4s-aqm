@@ -138,23 +138,6 @@
   Url                      = {https://tools.ietf.org/html/rfc7567}
 }
 
-@TechReport{Briscoe16a:l4s-arch_ID,
-  Title                    = {{Low Latency, Low Loss, Scalable Throughput (L4S) Internet Service: Architecture}{}},
-  Author                   = {Briscoe (Ed.), Bob and De Schepper, Koen and Bagnulo, Marcelo},
-  Institution              = ietf,
-  Year                     = {2017},
-  Month                    = may,
-  Note                     = {(Work in Progress)},
-  Number                   = {draft-ietf-tsvwg-l4s-arch-00},
-  Type                     = i-d,
-
-  Abstract-url             = {\url{http://www.bobbriscoe.net/pubs.html#l4s-arch}},
-  Keywords                 = {Data Communication, Networks, Internet, Performance, Latency, Congestion Control, Congestion Avoidance, QoS, Algorithms, Design, AQM, TCP, Analysis, Scaling, Evaluation},
-  Owner                    = {RJB},
-  Timestamp                = {2016.06.06},
-  Url                      = {https://tools.ietf.org/html/draft-ietf-tsvwg-l4s-arch}
-}
-
 @TechReport{Briscoe17b:sigqdyn_TR,
   Title                    = {{Rapid Signalling of Queue Dynamics}{}},
   Author                   = {Bob Briscoe},
@@ -361,40 +344,6 @@
   Owner                    = {RJB},
   Timestamp                = {2015.06.11},
   Url                      = {http://riteproject.eu/publications/}
-}
-
-@TechReport{Briscoe15e:DualQ-Coupled-AQM_ID,
-  Title                    = {{DualQ Coupled AQM for Low Latency, Low Loss and Scalable Throughput}{}},
-  Author                   = {De Schepper, Koen and Briscoe (Ed.), Bob and Olga Bondarenko and Tsang, Ing-Jyh},
-  Institution              = ietf,
-  Year                     = {2017},
-  Month                    = jul,
-  Note                     = {(Work in Progress)},
-  Number                   = {draft-ietf-tsvwg-aqm-dualq-coupled-01},
-  Type                     = i-d,
-
-  Abstract-url             = {\url{http://www.bobbriscoe.net/pubs.html#dualq-coupled}},
-  Keywords                 = {Data Communication, Networks, Internet, Performance, Latency, Congestion Control, Congestion Avoidance, QoS, Algorithms, Design, AQM, TCP, Analysis, Scaling, Evaluation},
-  Owner                    = {RJB},
-  Timestamp                = {2015.11.23},
-  Url                      = {http://tools.ietf.org/html/draft-ietf-tsvwg-aqm-dualq-coupled}
-}
-
-@TechReport{Briscoe15f:ecn-l4s-id_ID,
-  Title                    = {{Identifying Modified Explicit Congestion Notification (ECN) Semantics for Ultra-Low Queuing Delay}{}},
-  Author                   = {De Schepper, Koen and Briscoe (Ed.), Bob and Tsang, Ing-Jyh},
-  Institution              = ietf,
-  Year                     = {2017},
-  Month                    = may,
-  Note                     = {(Work in Progress)},
-  Number                   = {draft-ietf-tsvwg-ecn-l4s-id-00},
-  Type                     = i-d,
-
-  Abstract-url             = {\url{http://www.bobbriscoe.net/pubs.html#ecn-l4s-id}},
-  Keywords                 = {Data Communication, Networks, Internet, Performance, Latency, Congestion Control, Congestion Avoidance, QoS, Algorithms, Design, AQM, TCP, Analysis, Scaling, Evaluation},
-  Owner                    = {RJB},
-  Timestamp                = {2015.11.23},
-  Url                      = {http://tools.ietf.org/html/draft-ietf-tsvwg-ecn-l4s-id}
 }
 
 @TechReport{Eardley09:PCN-mark,
@@ -779,23 +728,6 @@
   url       = {\url{http://www.statslab.cam.ac.uk/~frank/rate.html}},
 }
 
-@TechReport{Briscoe19b:q-prot_ID,
-  author       = {Bob Briscoe and Greg White},
-  title        = {{Queue Protection to Preserve Low Latency}{}},
-  institution  = ietf,
-  year         = {2019},
-  type         = i-d,
-  number       = {draft-briscoe-q-protection-00},
-  month        = jul,
-  note         = {(Work in progress)},
-  abstract-url = {\url{http://www.bobbriscoe.net/pubs.html#q-prot}},
-  affiliation  = {CableLabs},
-  keywords     = {Data Communication, Networks, Internet, Accountability, Latency, ProteDelay, Queue Delay,, Fairness, Resource Sharing, Performance, Congestion Control, Quality of Service, QoS, Policing, Denial of Service},
-  owner        = {RJB},
-  timestamp    = {2019.07.19},
-  url          = {https://tools.ietf.org/html/draft-briscoe-docsis-q-protection-00},
-}
-
 @Misc{Heist20:L4S_tests,
   author       = {Pete Heist and Jonathan Morton},
   title        = {{L4S Tests}{}},
@@ -845,15 +777,83 @@
   url       = {\url{http://www.aciri.org/floyd/end2end-paper.html} or \url{http://ieeexplore.ieee.org/xpls/abs_all.jsp?arnumber=793002}},
 }
 
+@TechReport{Briscoe19b:q-prot_ID,
+  author       = {Bob Briscoe and Greg White},
+  title        = {{The DOCSIS\textsuperscript{\textregistered} Queue Protection Algorithm to Preserve Low Latency}{}},
+  institution  = {RFC Editor, Independent Submission Stream},
+  year         = {2022},
+  type         = i-d,
+  number       = {draft-briscoe-docsis-q-protection-06},
+  month        = may,
+  note         = {(Work in progress)},
+  abstract-url = {\url{http://www.bobbriscoe.net/pubs.html#q-prot}},
+  affiliation  = {1: Independent; 2: CableLabs},
+  keywords     = {Data Communication, Networks, Internet, Accountability, Latency, ProteDelay, Queue Delay,, Fairness, Resource Sharing, Performance, Congestion Control, Quality of Service, QoS, Policing, Denial of Service},
+  owner        = {RJB},
+  timestamp    = {2019.07.19},
+  url          = {https://datatracker.ietf.org/doc/html/draft-briscoe-docsis-q-protection},
+}
+
+@TechReport{Briscoe16a:l4s-arch_ID,
+  author        = {Briscoe (Ed.), Bob and De Schepper, Koen and Bagnulo, Marcelo and White, Greg},
+  title         = {{Low Latency, Low Loss, Scalable Throughput (L4S) Internet Service: Architecture}{}},
+  institution   = ietf,
+  year          = {2022},
+  type          = i-d,
+  number        = {draft-ietf-tsvwg-l4s-arch-17},
+  month         = mar,
+  note          = {(Work in Progress)},
+  __markedentry = {[RJB:1]},
+  abstract-url  = {\url{http://www.bobbriscoe.net/pubs.html#l4s-arch}},
+  keywords      = {Data Communication, Networks, Internet, Performance, Latency, Congestion Control, Congestion Avoidance, QoS, Algorithms, Design, AQM, TCP, Analysis, Scaling, Evaluation},
+  owner         = {RJB},
+  timestamp     = {2016.06.06},
+  url           = {https://datatracker.ietf.org/doc/html/draft-ietf-tsvwg-l4s-arch},
+}
+
+@TechReport{Briscoe15f:ecn-l4s-id_ID,
+  author        = {De Schepper, Koen and Briscoe (Ed.), Bob},
+  title         = {{Explicit Congestion Notification (ECN) Protocol for Very Low Queuing Delay (L4S)}{}},
+  institution   = ietf,
+  year          = {2022},
+  type          = i-d,
+  number        = {draft-ietf-tsvwg-ecn-l4s-id-25},
+  month         = mar,
+  note          = {(Work in Progress)},
+  __markedentry = {[RJB:1]},
+  abstract-url  = {\url{http://www.bobbriscoe.net/pubs.html#ecn-l4s-id}},
+  keywords      = {Data Communication, Networks, Internet, Performance, Latency, Congestion Control, Congestion Avoidance, QoS, Algorithms, Design, AQM, TCP, Analysis, Scaling, Evaluation},
+  owner         = {RJB},
+  timestamp     = {2015.11.23},
+  url           = {https://datatracker.ietf.org/doc/html/draft-ietf-tsvwg-ecn-l4s-id},
+}
+
+@TechReport{Briscoe15e:DualQ-Coupled-AQM_ID,
+  author        = {De Schepper, Koen and Briscoe (Ed.), Bob and White, Greg},
+  title         = {{DualQ Coupled AQM for Low Latency, Low Loss and Scalable Throughput (L4S)}{}},
+  institution   = ietf,
+  year          = {2022},
+  type          = i-d,
+  number        = {draft-ietf-tsvwg-aqm-dualq-coupled-23},
+  month         = may,
+  note          = {(Work in Progress)},
+  __markedentry = {[RJB:1]},
+  abstract-url  = {\url{http://www.bobbriscoe.net/pubs.html#dualq-coupled}},
+  keywords      = {Data Communication, Networks, Internet, Performance, Latency, Congestion Control, Congestion Avoidance, QoS, Algorithms, Design, AQM, TCP, Analysis, Scaling, Evaluation},
+  owner         = {RJB},
+  timestamp     = {2015.11.23},
+  url           = {http://tools.ietf.org/html/draft-ietf-tsvwg-aqm-dualq-coupled},
+}
+
 @TechReport{Morton19:SCE_ID,
-  author      = {Jonathan Morton and David Taeht},
+  author      = {Jonathan Morton and Peter G. Heist and Rodney W. Grimes},
   title       = {{The Some Congestion Experienced ECN Codepoint}{}},
   institution = ietf,
-  year        = {2019},
+  year        = {2021},
   type        = i-d,
-  number      = {draft-morton-taht-sce-00},
-  month       = mar,
-  note        = {(work in progress)},
+  number      = {draft-morton-tsvwg-sce-03},
+  month       = may,
+  note        = {(Expired)},
   keywords    = {Data communication, Networks, Internet, Active Queue Management, Congestion Control, Algorithm, Scheduling},
   owner       = {RJB},
   timestamp   = {2019.07.20},
