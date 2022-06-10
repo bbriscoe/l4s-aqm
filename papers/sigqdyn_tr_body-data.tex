@@ -15,7 +15,7 @@ EST is not a new idea --- many AQMs measure queue delay in a similar way. The di
 \subsection{Time-Based Backlog}\label{sec:time-based_backlog}
 
 In this approach, as each packet is about to be dequeued from the head of the queue, the expected service time to clear the backlog behind it is calculated as
-\[\mathbb{E}(\mathrm{svc\_time}) = \mathrm{(backlog\_deq)}\times \frac{\mathrm{avg\_serializn\_time}}{\mathrm{(avg\_pkt\_size)}},\]
+\[\mathbb{E}(\mathrm{svc\_time}) = \mathrm{backlog\_deq}\times \frac{\mathrm{avg\_serializn\_time}}{\mathrm{avg\_pkt\_size}},\]
 or in English, the expected service time, \(t_b^*\), to clear the backlog is the backlog at dequeue, \(b\) (e.g.\ in bytes), multiplied by the recent average serialization time of each packet, \(t_s^*\) and divided by the recent average packet size (in bytes), \(s^*\).
 
 Multiplying by the quotient on the right is the same as dividing by the average drain rate. As with averaging any rate, the quotient should be calculated as a quotient of averages, not an average of quotients. This is particularly important if the drain rate varies considerably. Also the averages should be exponentially weighted moving averages (EWMAs) with high gain, e.g. \(g=\sfrac{1}{2}\), so that they respond rapidly to changing delivery rate. The gain should be an integer power of 2 so that it can be implemented as a bit-shift.
@@ -31,15 +31,15 @@ While the buffer is non-empty, the time that dequeue ends, \(t_2\) will typicall
 
 On the other hand, if the buffer was empty when the previous packet finished dequeuing, the time that serialization took has to be used, without including the idle time waiting for the next dequeue to start.
 
-Note that any media acquisition delay should not be counted, and the backlog that builds while waiting to acquire the medium should not be counted for AQM marking, because it is not caused by the load from the sender, and therefore cannot be reduced by getting the sender to slow down.
+Note that the backlog that builds while waiting to acquire the medium should not be counted for AQM marking, because it is not caused by the load from the sender, and therefore cannot be reduced by getting the sender to slow down. Similarly, if a pipeline of frame processing starts on packets as they approach the head of the queue, the backlog behind this point should be used (which is the last point at which packets can be ECN-marked or dropped anyway). The EST should not include the time needed to process the packets ahead of this point in the queue, because this processing delay cannot be reduced by asking the source to reduce the load.
 
 \subsubsection{Rationale for Time-Based Backlog}\label{sec:time-based_backlog_justify}
 
-The time-based backlog approach assumes that the drain rate to clear the backlog will be similar to that averaged over the last few packets. There is no good reason to believe that the recent drain rate is a good estimator of the drain rate in the near future.\footnote{For instance, a radio link is continually testing different rates to find which is the best and if a queue is continually yielding to a higher priority queue, it will proceed in fits and starts.} However, for the purpose of signalling congestion, the recent drain rate gives the best available estimate of the time to drain the backlog, which itself was a result of the recent drain rate.
+The time-based backlog approach assumes that the drain rate to clear the backlog will be similar to that averaged over the last few packets. There is no good reason to believe that the recent drain rate is a good estimator of the drain rate in the near future.\footnote{For instance, typically a WiFi link continually tests different rates to find which is the best~\cite{McGregor10:Minstrel_TR}; or if a queue is continually yielding to a higher priority queue, it will proceed in fits and starts.} However, for the purpose of signalling congestion, the recent drain rate gives the best available estimate of the time to drain the backlog, which itself was a result of the recent drain rate.
 
 It should be pointed out that sojourn time also measures the drain rate over the last few packets. But we have already shown that it ignores the current backlog \emph{behind} the head packet.
 
-One might consider estimating the recent drain rate from the size of just the single most recent head packet and the time to dequeue it. However, such an approach is prone to errors due to coarse clock precision or interruptions affecting access to the clock. By using EWMAs, any such errors should average out, while using a high gain (about \(\sfrac{1}{2}\)) keeps the measurement lag down to about two packets.\footnote{The approach in PIE is similar, except it averages the drain rate over sixteen contiguous packets, and whenever the queue is not that long, the last available average rate is used.}
+One might consider estimating the recent drain rate from the size of just the single most recent head packet and the time to dequeue it. However, such an approach is prone to errors due to coarse clock precision or interruptions affecting access to the clock. By using EWMAs, any such errors should be averaged with an equal but opposite timing error for the next packet. But use of a high gain is necessary to minimize the measurement lag (gain of \(\sfrac{1}{2}\) would introduce a lag of about two packets after a rate change).\footnote{The approach in PIE is similar, except it averages the drain rate over sixteen contiguous packets, and whenever the queue is not that long, the last available average rate is used.}
 
 \subsubsection{Size-Adjusted Threshold(s)}\label{sec:time-adj_thresh}
 
@@ -63,23 +63,25 @@ where \(\mathrm{backlog\_enq}\) can be written into the packet's metadata at enq
 
 \subsubsection{Rationale for Scaling Sojourn Time}\label{sec:inst_svc_time_justify}
 
-Scaled sojourn time is comparable to the above `time-based backlog' approach, but with the drain rate measured over the sojourn time of each head packet, which is equivalent to \(\mathrm{backlog\_enq}/\mathrm{sojourn\_time}\). There are two disadvantages, and one advantage, to measuring over a sojourn time.
+Scaled sojourn time is comparable to the above `time-based backlog' approach, but with the drain rate measured over the sojourn time of each head packet, which is equivalent to \(\mathrm{backlog\_enq}/\mathrm{sojourn\_time}\). There is one advantage but two disadvantages to measuring over a sojourn time:
 \begin{description}
-	\item[Disadvantage 1:] The measurement delay depends on the queuing delay, which makes it problematic to signal bursts quickly;
-	\item[Disadvantage 2:] Each sojourn measurement is sensitive to errors reading the clock and, when the ratio of the backlogs is large, as it is during a burst, any error will be greatly magnified;
-	\item[Advantage 1:] Like sojourn time, scaled sojourn time can be measured over an arbitrarily complex set of queues, by only measuring the time of first enqueue and last dequeue and the backlog at enqueue and dequeue times.
+	\item[Advantage 1:] Like sojourn time, scaled sojourn time can be measured over an arbitrarily complex set of queues, by only measuring the time of first enqueue and last dequeue and the backlog at enqueue and dequeue times;
+	\item[Disadvantage 1:] The measurement delay depends on the queuing delay, which makes it problematic to signal bursts accurately after a link rate-change;
+	\item[Disadvantage 2:] Each sojourn measurement is sensitive to errors reading the clock and, when the ratio of the backlogs is large, as it is during a burst, any error will be greatly magnified.
 \end{description}
+
+This last point will now be stated more precisely so that it can be determined whether it is critical given a particular system's clock precision. We assume that packets are being dequeued contiguously (which is not always the case). If the error of one clock reading is \(\varepsilon\), that will contribute \(+\varepsilon\) of error to the preceding sojourn and \(-\varepsilon\) to the subsequent sojourn. The worst case scaled error will occur if the first sojourn is for the first packet of a burst of \(N\) packets. Then the scaled sojourn algorithm inflates the first error to \(N\varepsilon\), and the second to \(-(N-1)\varepsilon/2\). Thus, rather than one error combining with the next to cancel each other out, the combined error becomes the sum of these two; that is \((N+1)\varepsilon/2\).
 
 Scaled sojourn time would not normally be of interest because of the two disadvantages. However, where an existing deployment or a complex queue structure makes the other approaches infeasible, the advantage of scaled sojourn time might outweigh these disadvantages (but see \S\,\ref{sec:sojourn-distrib}).
 
-Scaling the sojourn time might also make more sense if an implementation is already measuring the sojourn time for another reason. Then it will not need any additional measurement code, because it might already need to maintain the backlogs to do basic queue handling.
+Scaling the sojourn time might also make more sense if an implementation is already measuring the sojourn time for another reason. Then it might not need to make any additional measurements, if we assume it already maintains the backlogs to do basic queue handling.
 
 Geometric and algebraic analysis of scaled sojourn time as well as ideas for efficient implementation of the division are given in \autoref{sec:scaled_sojourn_details}
 
 % ----------------------------------------------------------------
 \subsection{Queue Delay Metric for Per-Flow Queueing}\label{sec:fq_delay_metric}
 
-\bob{Metric for AQM as a whole, not for each flwo-queue.}
+\bob{Metric for AQM as a whole, not for each flow-queue.}
 
 % ================================================================
 \section{Marking Fairness}\label{sec:marking_fairness_discuss}
@@ -203,7 +205,7 @@ Note that the backlog at enqueue time and the backlog at dequeue time need to in
 
 For instance, on a single machine, the \texttt{count\_enq} variable would be available in a memory shared between ingress and egress. But if the ingress and egress are separate, the ingress machine would have to communicate the \texttt{count\_enq} variable to the egress over a (preferably non-blocking) control channel, so that the egress could calculate \texttt{backlog\_deq} by subtracting \texttt{count\_deq}. 
 
-Certain access network technologies, e.g.\ those for cellular radio access networks, already include such a control channel, over which buffer status report (BSR) control messages are sent from the user equipment at the ingress to the radio network controller. The delay to access a control variable at the input machine from the output machine would be larger than that in a non-distributed system, but it would at least be a known, constant delay. So the control system could still provide robust metrics to control queuing in the data channel.
+Certain access network technologies, e.g.\ those for cellular radio access networks, already include such a control channel, over which buffer status report (BSR) control messages are sent from the user equipment to the radio network controller. The delay to access a control variable at the input machine from the output machine would be larger than that in a non-distributed system, but it would at least be a known, constant delay. So the control system could still provide robust metrics to control queuing in the data channel.
 
 As well as the aggregation node using expected service time (EST) to apply congestion signalling within the final dequeue routine (effectively on behalf of the input queue), the aggregation node could also use EST to govern the scheduling algorithm for controlling each client's inward (upstream) access rate into the shared medium, by altering the rate at which it granted medium access slots to each client.
 

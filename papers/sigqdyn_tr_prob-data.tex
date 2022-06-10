@@ -6,7 +6,7 @@ In around 2012, it became recognized that one of the main problems with AQMs was
 \begin{itemize}
 	\item access links often change their rate when modems retrain in response to interference. 
 	\item a queue can be part of a scheduling hierarchy and traffic in higher priority queues varies the capacity left for a lower priority queue, rapidly varying the drain rate that the AQM experiences.
-	\item the capacity of radio links varies rapidly over time~\cite{McGregor10:Minstrel_TR}.
+	\item the rate of typical WiFi links varies rapidly over time~\cite{McGregor10:Minstrel_TR}.
 \end{itemize}
 
 The CoDel algorithm~\cite{Nichols12:CoDel} proposed to solve this problem by measuring the queue in units of time, rather than bytes. This made the configuration of the thresholds in the algorithm independent of the drain rate.
@@ -139,10 +139,7 @@ The section ``Underutilization with Bursty Links'' in the same online collection
 \paragraph{Perverting congestion policing:} A common technique in traffic policing is to identify misbehaving traffic by the disproportionate amount of congestion marking that an AQM applies to it~\cite{Floyd99:Penalty_box}. Therefore, if an AQM fails to subject bursty traffic to a fair degree of marking, it will allow bursty traffic both to evade policing and to fool the policer into punishing smoother traffic instead.\footnote{See \S\,\ref{sec:qprot_marking_fairness} for a potential efficiency improvement to queue protection based on EST marking.}
 
 \paragraph{Late-comer Disadvantage:} TCP Segmentation Offload (TSO) in Linux (and possibly other OSs) groups a set of packet into a back-to-back aggregate or burst and calculates the maximum packets in a burst from the current pacing rate of the flow (in pkt/s):
-\begin{verbatim}
-  max_burst = pacing_rate * MAX_BURST_DELAY
-                             / MTU_BITS.
-\end{verbatim}
+\[\mathrm{max\_burst} = \mathrm{pacing\_rate}\times \frac{\mathrm{MAX\_BURST\_DELAY}}{\mathrm{MTU\_BITS}}.\]
 The flow's pacing rate is upper bounded by the link rate, so this ensures that the burst will not cause more than MAX\_BURST\_DELAY of queuing delay at the bottleneck. However, when a new flow starts, its pacing rate is typically well below the link rate and well below the pacing rate of any flows already established over the bottleneck link. Therefore new Linux flows consist of smaller bursts while established Linux flows consist of larger bursts. 
 
 If an AQM at the bottleneck is based on sojourn time and therefore marks larger bursts less than smaller bursts, new flows will attract a higher congestion marking probability than established flows. Then as a new flow tries to displace an established flow, it will tend to reach a point of local equilibrium before it has reached the same rate as the established flow. Thus sojourn marking can lead to a late-comer disadvantage.
