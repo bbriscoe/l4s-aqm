@@ -2,7 +2,7 @@
 % ================================================================
 \section{Solution: Expected Service Time}\label{sec:exp_svc_time}
 
-As already explained, to minimize control path delay and consequently to minimize the blame shifting problem for an immediate AQM, the metric to measure the queue needs to base packet marking on the delay that each packet causes to other packets, not on the delay other packets cause to it. So we need to measure the queue backed up behind the packet about to be marked, not in front of it. But we still need to measure the queue in time units, not bytes or packets, so that any AQM algorithm is robust to varying link rate.
+As already explained, to minimize control path delay and consequently to minimize the blame shifting problem, the metric to measure the queue of an immediate AQM needs to base packet marking on the delay that each packet causes to other packets, not on the delay other packets cause to it. So we need to measure the queue backed up behind the packet about to be marked, not in front of it. But we still need to measure the queue in time units, not bytes or packets, so that any AQM algorithm is robust to varying link rate.
 
 Two approaches will be proposed . Both start with the backlog measured instantaneously at dequeue, then translate it into the expected time needed to drain this backlog---thus both measure the `expected service time':
 \begin{itemize}[nosep]
