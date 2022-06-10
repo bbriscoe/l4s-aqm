@@ -1,7 +1,12 @@
 *.synctex.gz
+*.eps
 *.bib.bak
+*.bbl
 *.aux
 *.blg
 *.log
 *.out
-
+*.tar
+papers/sigqdyn_tr*.pdf
+papers/references/
+presents/
