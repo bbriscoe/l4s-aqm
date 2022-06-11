@@ -15,7 +15,7 @@ EST is not a new idea --- many AQMs measure queue delay in a similar way. The di
 \subsection{Time-Based Backlog}\label{sec:time-based_backlog}
 
 In this approach, as each packet is about to be dequeued from the head of the queue, the expected service time to clear the backlog behind it is calculated as
-\[\mathbb{E}(\mathrm{svc\_time}) = \mathrm{backlog\_deq}\times \frac{\mathrm{avg\_serializn\_time}}{\mathrm{avg\_pkt\_size}},\]
+\[\mathbb{E}(\mathrm{svc\_time}) = \mathrm{backlog\_deq} * \frac{\mathrm{avg\_serlizn\_time}}{\mathrm{avg\_pkt\_size}},\]
 or in English, the expected service time, \(t_b^*\), to clear the backlog is the backlog at dequeue, \(b\) (e.g.\ in bytes), multiplied by the recent average serialization time of each packet, \(t_s^*\) and divided by the recent average packet size (in bytes), \(s^*\).
 
 Multiplying by the quotient on the right is the same as dividing by the average drain rate. As with averaging any rate, the quotient should be calculated as a quotient of averages, not an average of quotients. This is particularly important if the drain rate varies considerably. Also the averages should be exponentially weighted moving averages (EWMAs) with high gain, e.g. \(g=\sfrac{1}{2}\), so that they respond rapidly to changing delivery rate. The gain should be an integer power of 2 so that it can be implemented as a bit-shift.
@@ -83,7 +83,15 @@ Geometric and algebraic analysis of scaled sojourn time as well as ideas for eff
 % ----------------------------------------------------------------
 \subsection{Queue Delay Metric for Per-Flow Queueing}\label{sec:fq_delay_metric}
 
-\bob{Metric for AQM as a whole, not for each flow-queue.}
+It is easy to measure the delay that a packet itself experiences on its sojourn through a per-flow queue. But the concepts of delay in front and delay behind a packet in a FIFO do not translate straightforwardly to FQ.
+
+It is not at all easy to define the delay of `the packets' behind the head of a per-flow queue.\footnote{Strictly, all the packets in the whole FQ system are delayed by the packet about to be dequeued. But marking on that basis would allow any flow to increase the marking of other flows by being unresponsive and bloating its own flow-queue. FQ marking has to relate most strongly to the depth of the flow-queue in question, but it is also dependent on how fast packets will work through that flow-queue, which depends on how many other queues there are (heavy and light), and the evolution of the other queues during the future sojourn of the tail packet through the flow-queue in question; how many new flow-queues appear and how many existing queues empty.}
+
+Nonetheless, it is more straightforward to define the expected service time of a flow-queue as its depth divided by its expected drain rate. The recent drain rate of each flow-queue is about the same as all the others. So it would seem more straightforward to measure the drain rate of the whole FQ system and divide it by the current (instantaneous) number of queues (light and heavy). Using the aggregate should more rapidly cancel out any imprecision in individual measurements. This leads to the following formula:
+\[\mathbb{E}(\mathrm{svc\_time}_i) = \mathrm{backlog\_deq}_i * \frac{\mathrm{avg\_serlizn\_time}}{\mathrm{avg\_pkt\_size}} * \mathrm{no\_q}.\]
+This is very similar to the time-based backlog formula in \S\,\ref{sec:time-based_backlog}, except \(\mathrm{backlog\_deq}_i\) is the backlog of just the flow-queue in question (indexed \(i\)) not all the flows, and \(\mathrm{no\_q}\) is the current number of queues. As before, the average drain rate should be calculated as the quotient of two averages (packet size and serialization time) rather than the average of the sequence of quotients.
+
+The scaled sojourn technique would also be a possibility, with the caveats already highlighted in \S\,\ref{sec:scaled_svc_time}. It uses only metrics local to each flow-queue. That is, the sojourn time of the head packet and the ratio of the backlogs of the flow-queue in question at dequeue and enqueue. However, this reliance on local variables is not necessarily a good thing, because it does not exploit the naturally better precision and timeliness of measurements taken over the whole aggregate. It should be necessary to lock any of the common variables, which can be written by a single central thread and they only need to be read for each marking calculation.
 
 % ================================================================
 \section{Marking Fairness}\label{sec:marking_fairness_discuss}
