@@ -1,4 +1,20 @@
 % !TeX root = sigqdyn_tr.tex
+% ================================================================
+\section{The Problem}\label{sigqdyntr_problem}
+% ----------------------------------------------------------------
+\subsection{The Problem in Brief}\label{sigqdyntr_problem_brief}
+The signal from an AQM can be subject to unnecessary \textbf{queuing delay} if it is applied to a packet during the enqueue process, so that it has to work its way through the queue before being transmitted to the line. In classical AQMs, queuing delay is configured to be of the same order of magnitude as typical propagation delays. Therefore subjecting the congestion signal to the delay of the queue will add unnecessary sloppiness to the control loop.
+
+Even if a signal is applied to a packet as it is dequeued, it is often based on a \textbf{measurement} that has taken some time to collect. For instance, the sojourn time technique, which is becoming common for measuring the queue in modern AQMs, gives a queue delay metric that is always out of date by the amount of time the packet spent in the queue. So even if the signal is applied at dequeue, it is delayed by the time spent measuring it in the queue.
+
+The sojourn time measured when a packet reaches the head of the queue takes no account of any change in the queue while that packet is working towards the head. Despite the queuing system holding all the information about those recent changes. So if a burst arrives, the sojourn time of packets in front of the burst will show no evidence of the queue building behind them. For instance, in \autoref{fig:sojourn-prob}a), the sojourn of the first packet of the burst takes '0' timeslots. And the sojourn time metric only fully measures the burst when the last packet of the burst reaches the head of the queue, where '9' is shown. Even though, in this case, all the packets of the burst had arrived before the packet tagged '1' was dequeued. In \S\,\ref{sec:fairer_marking} we will consider a mix of smooth and bursty traffic, then we will see how this delay attributing blame for a burst tends to shift the blame from bursty to smooth traffic.
+
+Whenever the drain rate abruptly reduces, use of sojourn time is similarly problematic. As soon as the reduction occurs, the time that packets will take to work through the queue increases. But, the sojourn time of those packets that have already worked their way towards the head of the queue does not reflect the delay that will be experienced by the packets behind them.
+
+Conversely, consider the queue in \autoref{fig:sojourn-prob}b) that has been stable then the data flow ends abruptly, so that no further packets arrive. Then, even when the last packet to arrive is about to be dequeued from the head of the queue, its sojourn time still measures the stable queue delay when it arrived, because that's how long it took to drain the queue. If sojourn alone were used for marking and dropping, there would be no externally visible evidence of the now empty queue behind the last packet until traffic started again.
+
+Implementations of AQMs that use sojourn time sometimes include code to deal with certain exceptional cases (such as an empty queue). But this memo proposes simple techniques to cut out the root cause of that measurement delay in all cases; by using all the information available in the queue at the point that a packet is dequeued. At dequeue there is very little time for additional processing, so considerable attention has had to be paid to minimizing execution time as well.
+
 % ----------------------------------------------------------------
 \subsection{The Time to Measure the Service Time of a Queue}\label{sec:svc_time}
 
