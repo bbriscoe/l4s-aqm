@@ -11,9 +11,8 @@
 	\includegraphics[width=\linewidth]{est-fairnessSumBeta10625}
 	\includegraphics[width=\linewidth]{est-fairnessSumBeta125}
 	\includegraphics[width=\linewidth]{est-fairnessSumBeta225}
-	\caption{EST-based marking fairness of two flows wrt capacity share, \(\lambda\), and relative burstiness, \(\beta\).\\
-	\(\lambda_a+\lambda_b=100\%; \quad\mathrm{top:} \beta_a+\beta_b=1.0625; \quad\mathrm{middle:} \beta_a+\beta_b=1.25 
-	\quad\mathrm{bottom:} \beta_a+\beta_b=2.25\). 
+	\caption{EST-based marking fairness of two flows wrt capacity share, \(\lambda\), and relative burstiness of flow \(a, \beta_a\).\\
+	\(\sum\lambda=100\%; \enspace\sum\beta=1.0625, 1.25, 2.25 \mathrm{(top, middle, bottom)}\). 
 	The left-hand charts are the same as the right, except they exclude two scenarios that otherwise obscure the other plots}\label{fig:est-fairness-range}
 \end{figure*}
 
@@ -22,8 +21,10 @@
 The charts show the ECN marking level that results from scanning the scenario parameters across two dimensions:
 \begin{enumerate}
 	\item The capacity share of flow \(a\), \(\lambda_a\) is varied from \sfrac{1}{32} to \sfrac{1}{2} and the share the other flow \(b\) is also varied so that it fills the remainder of the link (\(\lambda_a+\lambda_b=100\%\))). The left-hand chart of each pair is identical to the right-hand chart except, to help pick out the plots, the last two capacity-share scenarios are omitted.
-	\item The normalized burst size of flow \(a\), \(\beta_a\) is increased from \sfrac{1}{16} in steps of \sfrac{1}{16}, while the burst size of flow \(b\) is reduced such that the sum of both burst sizes is constant. The sum is 1.25 in the top plots, and 1.0625 in the bottom. 	Normalization is relative to the ECN marking threshold, so a sum of 1.25 means that if bursts from both flows coincide, a previously empty queue would exceed the marking threshold by 25\%.
+	\item The normalized burst size of flow \(a\), \(\beta_a\) is increased from \sfrac{1}{16} in steps of \sfrac{1}{16}, while the burst size of flow \(b\) is reduced such that the sum of both burst sizes is constant. Normalization is relative to the ECN marking threshold, so a sum of 1.25 means that if bursts from both flows coincide, a previously empty queue would exceed the marking threshold by 25\%. The sum increases from 1.0625 in the top plots, through 1.25 in the middle to 2.25 at the bottom, increasingly the likelihood of exceeding the threshold because a burst from one flow will not have drained enough when a burst from the other arrives.
 \end{enumerate}
+
+Bear in mind that, the average capacity share \(\lambda\) of each differently styled plot stays constant. So, as the burst size of flow \(a\) increases to the right its larger bursts have to become less frequent. And the burst size of flow \(b\) decreases to the right, so its smaller bursts become more frequent.
 
 It can be seen from the right-hand side of any of the plots that, if flow \(a\) utilizes a small fraction of the capacity (up to roughly \sfrac{1}{8}) and if it is even slightly more bursty than the flow \(b\) (which is using more of the capacity), EST-based marking focuses a high fraction of the marking onto the more bursty flow. 
 

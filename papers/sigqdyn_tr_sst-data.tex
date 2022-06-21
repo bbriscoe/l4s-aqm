@@ -15,7 +15,7 @@
 
 It can be seen that the sojourn time (\(t_{s1}\)) between \(t_0\) and \(t_1\) takes account of the departure rate, but not the arrival rate (the burst), during that time. It is proposed to scale the sojourn time by the ratio of the backlogs at departure and arrival of the packet. That is \(t_{s1}^* = t_{s1} b_1/b_0\). This scaled sojourn time uses all the latest information available at time \(t_1\). 
 
-The schematic in the middle of the figure shows, using similar triangles, how scaled sojourn time is constructed.  The departure rate during the sojourn is represented by the slope of the smaller of the middle triangle. The larger triangle extrapolates that departure rate to predict the time (\(t_{s1}^*\)) that it will take for the most recent backlog to drain.
+The schematic in the middle of the figure shows, using similar triangles, how scaled sojourn time is constructed.  The departure rate during the sojourn is represented by the slope of the smaller of the middle triangles. The larger triangle extrapolates that departure rate to predict the time (\(t_{s1}^*\)) that it will take for the most recent backlog to drain.
 
 The lower schematic shows the situation at time \(t_2\). The actual sojourn time of the new head packet \(t_{s2}\) is slightly shorter than the prediction \(t_{s1}^*\). From this new actual sojourn time, a new prediction can now be constructed  from the slightly steeper rate slope. This time the backlog \(b_2\) has reduced  during the sojourn of the head packet, because there has been a lull in arrivals since \(t_1\). Therefore the formula predicts that the sojourn time will be scaled down relative to its measured value.
 

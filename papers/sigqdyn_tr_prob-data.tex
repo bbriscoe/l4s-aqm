@@ -154,13 +154,34 @@ The section ``Underutilization with Bursty Links'' in the same online collection
 
 \paragraph{Perverting congestion policing:} A common technique in traffic policing is to identify misbehaving traffic by the disproportionate amount of congestion marking that an AQM applies to it, as first proposed by Floyd and Fall~\cite{Floyd99:Penalty_box}. Therefore, if an AQM fails to subject bursty traffic to a fair degree of marking, it will allow bursty traffic both to evade policing and to fool the policer into punishing smoother traffic instead.\footnote{See \S\,\ref{sec:qprot_marking_fairness} for a potential efficiency improvement to queue protection based on EST marking.}
 
-\paragraph{Late-comer Disadvantage:} TCP Segmentation Offload (TSO) in Linux (and possibly other OSs) groups a set of packet into a back-to-back aggregate or burst and calculates the maximum packets in a burst from the current pacing rate of the flow (in pkt/s):
-\[\mathrm{max\_burst} = \mathrm{pacing\_rate}\times \frac{\mathrm{MAX\_BURST\_DELAY}}{\mathrm{MTU\_BITS}}.\]
-The flow's pacing rate is upper bounded by the link rate, so this ensures that the burst will not cause more than MAX\_BURST\_DELAY of queuing delay at the bottleneck. However, when a new flow starts, its pacing rate is typically well below the link rate and well below the pacing rate of any flows already established over the bottleneck link. Therefore new Linux flows consist of smaller bursts while established Linux flows consist of larger bursts. 
+\paragraph{Late-comer Disadvantage:} TCP Segmentation Offload (TSO) in Linux (and probably other OSs) prepares a socket buffer (skb) of data that can be larger than the maximum segment size, then hands it off to be segmented into a set of packets that will be sent back-to-back in one burst. The segmentation can be done in hardware if available, otherwise by specialized kernel software.
+\begin{figure}
+	\centering
+	\includegraphics[width=\columnwidth]{cwnd-soj-300Mb-250us}
+	\caption{Late-comer Disadvantage with Linux TCP Segmentation Offload (TSO) and Immediate ECN marking based on Sojourn Time. See text for explanation and for experimental conditions.}\label{fig:cwnd-soj-300Mb-250us}
+\end{figure}
 
-If an AQM at the bottleneck is based on sojourn time and therefore marks larger bursts less than smaller bursts, new flows will attract a higher congestion marking probability than established flows. Then as a new flow tries to displace an established flow, it will tend to reach a point of local equilibrium before it has reached the same rate as the established flow. Thus sojourn marking can lead to a late-comer disadvantage.
+A Linux congestion control module (e.g.\ BBR or Prague) calculates the maximum number of packets in a burst from the current pacing rate of the flow (in pkt/s):
+\[\mathrm{max\_burst} = \mathrm{pacing\_rate} * \frac{\mathrm{MAX\_BURST\_DELAY}}{\mathrm{MTU\_BITS}}.\]
+The flow's pacing rate is inherently upper bounded by the rate of the bottleneck link\footnote{Strictly, the rate measured in the previous round trip.}, so this ensures that the burst will not cause more than MAX\_BURST\_DELAY of queuing delay at the bottleneck.
 
-\bob{Add figures from Joakim's paper}.
+However, when a new flow starts, its pacing rate is typically well below the link rate and well below the pacing rate of any flows already established over the bottleneck link. Therefore new Linux flows consist of smaller bursts while established Linux flows consist of larger bursts. 
+
+If an AQM at the bottleneck is based on sojourn time, which marks the packets in larger bursts with lower probability than those in smaller bursts, new flows will attract a higher congestion marking probability than established flows.\footnote{If all flows competing at a single bottleneck link send individual packets without bursting, at a single-queue AQM they would usually all experience the same drop or marking probability.} Then as a new flow tries to displace an established flow, it will tend to reach a point of local equilibrium before it has reached the same rate as the established flow. 
+
+This so-called late-comer disadvantage of sojourn marking can be seen in \autoref{fig:cwnd-soj-300Mb-250us}. This effect was first noticed while untangling a knot of five inter-dependent bugs and effects in DCTCP~\cite{Misund22a:DCTCP_bug-knot}. But it occurs with any congestion control used over an immediate AQM based on sojourn measurement. Indeed the congestion controls of the flows in the plot are both TCP Prague, both with 250\,\(\mu\)s max burst; and identical base RTTs of 36\,ms over a 300Mb/s Ethernet link (\cite{Misund22a:DCTCP_bug-knot} gives the full experimental conditions, kernel versions, etc.\ and shows similar outcomes with DCTCP when using the larger default max burst of 1\,ms). 
+
+\begin{figure}
+	\centering
+	\includegraphics[width=\columnwidth]{cwnd-est-300Mb-250us}
+	\caption{Resolution of the Late-comer Disadvantage in \autoref{fig:cwnd-soj-300Mb-250us} by using EST-based marking under otherwise identical conditions. Note the brief local equilibrium over 58--68\,s --- see text for explanation.}\label{fig:cwnd-est-300Mb-250us}
+\end{figure}
+
+\autoref{fig:cwnd-soj-300Mb-250us} shows how the late-comer is no longer disadvantaged if EST-based marking replaces sojourn-based in an otherwise identical experiment. This is because EST marks larger bursts more than smaller when competing for the same link.
+
+Note there is still a brief local equilibrium for about 10\,s after the 58\,s point in \autoref{fig:cwnd-soj-300Mb-250us}. We believe this is due to a different effect --- not the AQM, but integer truncation in the congestion control when it calculates the number of packets in a burst (currently being proved with further experiments). 
+
+To prove that this difference in convergence isn't just happenchance, more rigorous experiments averaged over multiple runs and over a range of conditions are reported in \S\,\ref{sec:marking_fairness_expts}. The single experiment runs shown here are merely to illustrate the problem, and a potential solution. 
 
 % ----------------------------------------------------------------
 \subsection{Blame Shifting and Per-Flow Queueing}\label{sec:fq_blame_shifting}
