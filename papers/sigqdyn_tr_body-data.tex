@@ -96,21 +96,29 @@ The scaled sojourn technique would also be a possibility, with the caveats alrea
 % ================================================================
 \section{Marking Fairness}\label{sec:marking_fairness_discuss}
 
-This section approaches the question of how to judge whether a particular marking scheme is fair. Before surveying the limited theoretical literature on this question in \S\,\ref{sec:marking_fairness_definition}, \S\,\ref{sec:marking_fairness_expts} takes an empirical approach to the more tractable question of whether EST-based marking is fairer than sojourn-based. 
+\subsection{Marking that Increases with Burst Size}\label{sec:marking_fairness_expts}
 
-To end the section, \S\,\ref{sec:qprot_marking_fairness} discusses the necessity of fair marking if queue protection\footnote{aka.\ burst policing or latency policing} is to depend on it, and considers whether EST-based marking acts rapidly enough to be used as the basis of a queue protection function that can identify and remove bursts from an aggregate without identifying individual application flows.
+A minimal condition for marking fairness is that packets in larger bursts experience more marking than those in smaller bursts when competing together in the same bottleneck under the same conditions. 
 
-\subsection{Empirical Marking Fairness}\label{sec:marking_fairness_expts}
+This is a necessary, but not sufficient condition, because it does not address the question of \emph{how much} marking should increase with burst size (which is discussed in \S\,\ref{sec:marking_fairness_definition}). 
+
+In \S\,\ref{sec:late-comer-problem}, the late-comer disadvantage problem was introduced, which is specifically due to larger bursts not being marked more than smaller. Here, as promised in that section, we check whether sojourn marking suffers from the problem, and whether EST marking solves it, over a wider range of path conditions. 
+
+\autoref{fig:late-comer-ratio-sweep} shows the outcome when one Prague flow (the late-comer) starts 5\,s after another. The ratio between the average flow rates (early over late) is shown in  the bottom row of each of the two pairs of charts. Link utilization is also shown in the top row of each pair, just to check it is always close to 100\%. The upper pair of charts sweeps a range of base RTTs (1.1\,ms--54.3\,ms) with constant 200\,Mb/s link rate. The lower pair sweeps a range of link rates (16\,Mb/s -- 296\,Mb/s) at constant 16\,ms base RTT.
+
+Averaging over multiple runs is also necessary, because examination of plots of rate against time show that when the rates of two identical flows get stuck in a local equilibrium, they can suddenly jump between different equilibria at what appear to be random times.
+
+
+\begin{figure*}
+	\centering
+	\includegraphics[width=0.85\linewidth]{experimental-AQM-root_rtt_v_util-q-ratio-prague-EST-v-SOJ-bursts1ms250us0}
+	\includegraphics[width=0.85\linewidth]{experimental-AQM-root_rate_v_util-q-ratio-prague-EST-v-SOJ-bursts1ms250us0}
+	\caption{TBA}\label{fig:late-comer-ratio-sweep}
+\end{figure*}
 
 \bob{Text describing experiments and commentary on results.}
 \bob{Point to marking fairness appendix.}
 
-\begin{figure*}
-	\centering
-	\includegraphics[width=\linewidth]{experimental-AQM-root_rtt_v_util-q-ratio-prague-EST-v-SOJ-bursts1ms250us0}
-	\includegraphics[width=\linewidth]{experimental-AQM-root_rate_v_util-q-ratio-prague-EST-v-SOJ-bursts1ms250us0}
-	\caption{TBA}
-\end{figure*}
 
 \subsection{What Marking would be Fair?}\label{sec:marking_fairness_definition}
 
@@ -172,6 +180,10 @@ From the earlier analysis of EST-based marking of traffic bursts (\S\,\ref{sec:m
 \end{itemize}
 
 \subsection{Queue Protection and Marking Fairness}\label{sec:qprot_marking_fairness}
+
+To end the section, \S\,\ref{sec:qprot_marking_fairness} discusses the necessity of fair marking if queue protection\footnote{aka.\ burst policing or latency policing} is to depend on it, and considers whether EST-based marking acts rapidly enough to be used as the basis of a queue protection function that can identify and remove bursts from an aggregate without identifying individual application flows.
+
+\bob{Stitch on the above para.}
 
 The goal of queue protection (QProt) is to try to eliminate bursty traffic from a shared low latency queue. The ability of EST-based marking to focus on bursts raises the possibility of a crude form of queue protection without having to identify layer-4 flows (in contrast to per-flow QProt specified for DOCSIS~\cite{Briscoe19b:q-prot_ID}).
 
