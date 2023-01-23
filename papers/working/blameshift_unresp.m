@@ -15,6 +15,7 @@
 ## ToDo:
 ## * Investigate why the queue has brief empty periods in the following:
 ##    blameshift_unresp_qt_out_lambdaSum100_betaSum125_betas400_i1_j50_k1_20230109-154003
+## * Check whether code completes properly at each t_max limit (scan #1 & #2)
 ## * Understand why 
 ##   - p_e dips between the two discontinuities
 ##   - qt_mode: plot at and either side of discontinuities 
@@ -43,7 +44,7 @@ qt_mode = true(1);
 if (qt_mode)
   i_lambda = 1; # index of lambda to plot if in qt_mode
   i_beta = 50;  # index of beta   to plot if in qt_mode
-  i_phi = 1;    # index of phi    to plot if in qt_mode
+  i_phi = 2;    # index of phi    to plot if in qt_mode
   if (i_lambda < 1 || i_lambda > lambdas)
     error("capacity share index parameter 'i_lambda' outside valid range");
   endif
@@ -189,60 +190,75 @@ for i = i_lambda
       #  t_burst[2] : start time of next burst from each flow
       #  i_next_burst : which burst is next
       
-      # Define the origin (t=0 & q=0) at the point when the combined queue is 
-      #  shortest assuming no standing queue, given utilization <= 100%
       # Time is scanned in two passes:
-      # 1) to find the max phase shift betw bursts, where the q will be shortest
+      # 1) to find where the q will be shortest
       # 2) to derive the actual queue process
+      # Define the origin (t=0 & q=0) at the point when the combined queue is 
+      #  shortest, assuming no standing queue, given utilization <= 100%
       
       # #1 time scan
-      # Rare bursts are scanned to find the max phase shift back to the last  
-      #  freq burst that could still be draining. Then, if this duration is:
-      #  * <= the freq burst, set origin at this freq burst;
-      #  * > the freq burst, but < freq interval, set origin at the rare burst.
-      #  Then t_burst(i_rare) should be set to the max phase shift, t_delta_max.
-      # Otherwise (if no rare burst could arrive at a non-empty queue), the 
-      #  origin can be set at the start of any rare burst, so use the first.
-      # In each case, i_head is pointed to the flow that bursts at the origin
-      #  and t_burst[2], the time until the next burst for each flow, is set.
-      t = 0;
+      # No q will be shorter than that after the max phase shift betw different
+      #  bursts of different flows
+      # Reason: Wherever is chosen as t=0, the same total amount of load arrives
+      #  in a cycle of duration t_max before the pattern repeats.
+      #  So q will be shortest after the longest time without any arrivals of
+      #  the other flow, irrespective of which burst is last, because the queue
+      #  depends on all the accumulated arrivals in the busy period before it 
+      #  empties.
+      #
+      # Only freq bursts need to be scanned to find the max phase shift:
+      #  * either back to the last rare burst 
+      #  * or forward to the next rare burst
+      #  'cos the max phase shift has to be between bursts of different types
+      #
+      t = 0;  ## ToDo: Not needed?
       c = 0;                                   # rare burst counter
-      # Phase shift is from the freq burst before a rare burst to that rare 
-      #  burst
-      t_delta0 = ti(i,j,i_freq) * phi(k)/phis; # initial phase shift
-      t_delta_max = 0;                   # max 'overlapping' phase shift so far
-      # Set defaults for case where t=0, q=0 at the start of a rare burst
-      i_head = i_rare;
-      t_burst(i_rare) = 0;
-      t_burst(i_freq) = ti(i,j,i_freq) - t_delta0;
+      t_delta_max = zeros(1,2);                # max phase shift so far
+      # 'Seed' the initial phase shift using fraction phi of the freq interval
+      t_delta0 = ti(i,j,i_freq) * phi(k)/phis;
       while (t <= t_max(i,j))
-        # Temporarily shift t=0 back to freq burst before the first rare burst
         t = t_delta0 + c * ti(i,j,i_rare);     # time of each rare burst
-        t_delta = rem(t, ti(i,j,i_freq));      # phase shift at each rare burst
-        if ( (t_delta > t_delta_max) && (t_delta < ti(i,j,i_freq)) )
-          t_delta_max = t_delta;
-        endif
+        t_delta(1) = rem(t, ti(i,j,i_freq));   # shift back to last freq burst
+        t_delta(2) = ti(i,j,i_freq) - t_delta(1); # shift fwd to next freq burst
+        t_delta_max = max(t_delta, t_delta_max);
+        ## ToDo: might be able to set i_next_burst here, sthg like:
+        ## [t_next_burst, i_next_burst] = min(t_burst);
         c++;
       endwhile
       clear c;
-      if (t_delta_max > 0)
-        if (t_delta_max <= beta(i_freq,j))
-          # queue empty at start of first freq burst
-          i_head = i_freq;
-          t_burst(i_freq) = 0;
-          t_burst(i_rare) = t_delta_max;
-        else
-          # queue empty at start of first rare burst
-          t_burst(i_freq) = ti(i,j,i_freq) - t_delta_max;
-        endif
+
+      # Set defaults for case where t=0, q=0 at the start of a rare burst.
+      # In each case, i_head is pointed to the flow that bursts at the origin
+      #  and t_burst[2], the time until the next burst for each flow, is set.
+      if ( t_delta_max(2) > t_delta_max(1) )
+        # q=0 at start of first freq burst
+        i_next_burst = i_head = i_freq;
+        t_burst(i_freq) = 0;
+        t_burst(i_rare) = ti(i,j,i_rare) - t_delta_max(2);    # >= 0
+      else
+        # q=0 at start of first rare burst (or t_delta_max == 0, i.e. sync'd)
+        i_next_burst = i_head = i_rare;
+        t_burst(i_rare) = 0;
+        t_burst(i_freq) = ti(i,j,i_freq) - t_delta_max(1);    # >= 0
       endif
+      # Special case when bursts coincide
+      if (max(t_delta_max) == ti(i,j,i_freq))
+        [~, i_next_burst] = min(beta(:,j));
+        t_burst(i_rare) = t_burst(i_freq) = 0;
+      endif
+      t_next_burst = 0;
+      ## ToDo: I think this is all predictable from which of the above cases we're in
+      ## t_next_burst = 0   # in all case
+      ## i_next_burst = i_head    # in all cases
+      ##
       # Calc arrival time and flow id of next burst
-      [t_next_burst, i_next_burst] = min(t_burst);
+##      [t_next_burst, i_next_burst] = min(t_burst);
+
       # If there's a tie, point i_next_burst to the index of the smaller burst
       #  (otherwise min() points i_next_burst to the lower index)
-      if (t_burst(1) == t_burst(2))
-        [~, i_next_burst] = min(beta(:,j));
-      endif
+##      if (t_burst(1) == t_burst(2))
+##        [~, i_next_burst] = min(beta(:,j));
+##      endif
       
       # #2 time scan
       t = 0;
