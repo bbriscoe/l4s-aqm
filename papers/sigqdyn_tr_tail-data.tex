@@ -2,17 +2,18 @@
 % ================================================================
 \section{Related Work}\label{sec:related}
 
+Wischik's doctoral thesis, paper and main references on marking fairness are summarized in \S\,\ref{sec:marking_fairness_definition}.
+
 Scaling sojourn time seems superficially similar to combined enqueue and dequeue ECN marking (CEDM)~\cite{Shan17:CEDM}, because CEDM marks a packet at enqueue if the queue is over a threshold, but then unmarks it at dequeue if the backlog has dropped below the threshold. However the two are significantly different. Firstly, CEDM has to be based on queue length in order to mark at enqueue. But also CEDM is intentionally asymmetric, in that it unmarks packets if the backlog at dequeue has dropped below the threshold, but it does not mark packets at dequeue if they have risen above the threshold. In contrast, scaling sojourn time is deliberately symmetric, meaning it compensates for growth or shrinkage of the backlog (\autoref{fig:scaled-sojourn}).
-\bob{Wischik's ROSA, and Kelly's SPSP.}
 
 \section{Further Work}
 
-The author is not aware of any additional related work, but so far only superficial efforts have been made to search the literature to check.
-
-The responsiveness of an AQM based on scaled sojourn time has been compared to that with just sojourn time in unpublished work with Tom Henderson using the ns3 simulator. However, the potential for expected service time to improve marking fairness under bursty traffic loads has only been superficially evaluated so far.\bob{Consider removing last sentence.}
+%The responsiveness of an AQM based on scaled sojourn time has been compared to that with just sojourn time in unpublished work with Tom Henderson using the ns3 simulator. 
+%
+\S\,\ref{sec:marking_fairness_expts} reports initial simulations and testbed experiments, and gives detailed discussion of further planned experiments.
 
 \section{Acknowledgements}\label{sigqdyntr_acks}
 
 %The breakdown of the elements of signalling delay in the Introduction is based on unpublished work for the author's PhD from 2006--07 entitled ``Necessary Changes Towards a Sufficient Internetwork Protocol;
 %Simple, Scalable, Secure \& Responsive Resource Control''. 
-The scaling of the service time of the queue was based on discussions with Henrik Steen, an MSc student of the author, in Nov 2016 \& May 2017. Asad Ahmed originally proposed the idea of using EST for aggregate queue protection. The experiments in \S\,\ref{sec:marking_fairness_expts} were implemented and run by Joakim Misund, originally as part of an exercise to untangle a knot of bugs and flaws in DCTCP.\bob{Add ref}
+The scaling of the service time of the queue was based on discussions with Henrik Steen, an MSc student of the author, in Nov 2016 \& May 2017. Asad Ahmed originally proposed the idea of using EST for aggregate queue protection. The experiments in \S\,\ref{sec:marking_fairness_expts} were implemented and run by Joakim Misund, originally as part of an exercise to untangle a knot of bugs and flaws in DCTCP~\cite{Misund22a:DCTCP_bug-knot}.

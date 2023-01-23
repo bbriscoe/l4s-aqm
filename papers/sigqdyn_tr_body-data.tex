@@ -100,25 +100,39 @@ The scaled sojourn technique would also be a possibility, with the caveats alrea
 
 A minimal condition for marking fairness is that packets in larger bursts experience more marking than those in smaller bursts when competing together in the same bottleneck under the same conditions. 
 
-This is a necessary, but not sufficient condition, because it does not address the question of \emph{how much} marking should increase with burst size (which is discussed in \S\,\ref{sec:marking_fairness_definition}). 
+This is a necessary, but not sufficient condition, because it does not address the question of \emph{how much} marking should increase with burst size (which is discussed in \S\,\ref{sec:marking_fairness_definition}).
 
-In \S\,\ref{sec:late-comer-problem}, the late-comer disadvantage problem was introduced, which is specifically due to larger bursts not being marked more than smaller. Here, as promised in that section, we check whether sojourn marking suffers from the problem, and whether EST marking solves it, over a wider range of path conditions. 
+\subsubsection{Simulations}
 
-\autoref{fig:late-comer-ratio-sweep} shows the outcome when one Prague flow (the late-comer) starts 5\,s after another. The ratio between the average flow rates (early over late) is shown in  the bottom row of each of the two pairs of charts. Link utilization is also shown in the top row of each pair, just to check it is always close to 100\%. The upper pair of charts sweeps a range of base RTTs (1.1\,ms--54.3\,ms) with constant 200\,Mb/s link rate. The lower pair sweeps a range of link rates (16\,Mb/s -- 296\,Mb/s) at constant 16\,ms base RTT.
+\autoref{sec:marking_fairness_expts} describes simulations to compare EST and sojourn marking. Simulation was used initially to be able to fully control the burst sizes relative to each other, in order to gain understanding without all the noise of a real system adding its own burstiness or allowing the phase of the bursts to drift, possibly causing beats or oscillations. Experiments over real equipment will also be conducted, but here the aim was to understand the underlying phenomenon.
 
-Averaging over multiple runs is also necessary, because examination of plots of rate against time show that when the rates of two identical flows get stuck in a local equilibrium, they can suddenly jump between different equilibria at what appear to be random times.
+In \autoref{sec:marking_fairness_expts}, the marking probability applied to two long-running unresponsive flows is measured as they compete at a bottleneck. Different runs increase the burstiness of one flow, while at the same time decreasing the other, such that the sum of the bursts is always the same. Different sets of experiments use different values for the sum of the two flows' bursts. Along a further dimension of the matrix of experiments, the average rate of one flow is increased in each run while the other's is decreased such that the total rate is the same. Different experiments set the sum of the two flow's rates differently, although the only plots included in the appendix are those where the sum of the two flow rates equals the link rate (100\% utilization).
 
+The original intention was to divide one flow's marking probability by the other's, to see whether the ratio increases (or at least does not decrease) as one flow's burstiness increases. However, the charts show the two probabilities separately, because there were frequent spikes where one probability dropped to zero, which would have required an arbitrary value to be plotted for all the 'divide by zero' errors. With some effort, it can be seen broadly that EST marking increases with burstiness (at least until marking saturates) and that the converse is true for sojourn marking. However, there is a lot of noise on the plots.
+
+It is planned to build a model in which the relative phasing of each flow's bursts can be controlled. Then the plan is to sweep across the phase space to produce an average that will hopefully filter out most of the noise, so that the plots can be interpreted more straightforwardly.
 
 \begin{figure*}
 	\centering
-	\includegraphics[width=0.85\linewidth]{experimental-AQM-root_rtt_v_util-q-ratio-prague-EST-v-SOJ-bursts1ms250us0}
-	\includegraphics[width=0.85\linewidth]{experimental-AQM-root_rate_v_util-q-ratio-prague-EST-v-SOJ-bursts1ms250us0}
-	\caption{TBA}\label{fig:late-comer-ratio-sweep}
+	\includegraphics[width=0.85\linewidth]{experimental-AQM-root_rate_v_ratio-prague-EST-v-SOJ-bursts1ms250us0}
+	\includegraphics[width=0.85\linewidth]{experimental-AQM-root_rtt_v_ratio-prague-EST-v-SOJ-bursts1ms250us0}
+	\caption{Late-comer disadvantage problem and solution. Rate ratio of two long-running TCP Prague flows with 5\,s staggered starts (late / early) over a sweep of RTTs (top pair) and of link rates (bottom pair). 6 types of setup shown in the legend as \(<\)Delay measurement (EST v.\ Sojourn)\(>\)--\(<\)Congestion control\(>\)--\(<\)Max TSO burst duration\(>\). In all cases AQM: 2\,ms step threshold.\\
+		Note: The green (No burst) plot often conceals the blue (250\,\(\mu\)s) plot beneath it.}\label{fig:late-comer-ratio-sweep}
 \end{figure*}
 
-\bob{Text describing experiments and commentary on results.}
-\bob{Point to marking fairness appendix.}
+\subsubsection{Testbed Experiments: Staggered Arrivals}
 
+In \S\,\ref{sec:late-comer-problem}, the late-comer disadvantage problem was introduced, which is specifically due to larger bursts not being marked more than smaller. Here, as promised in that section, we check whether sojourn marking suffers from the problem, and whether EST marking solves it, over a range of path conditions. 
+
+\autoref{fig:late-comer-ratio-sweep} shows the outcome when one Prague flow (the late-comer) starts 5\,s after another. The charts show the ratio between the average flow rates (late / early).\footnote{Link utilization and queue depth were also plotted (shown in \cite{Misund22a:DCTCP_bug-knot} but not here) to check the former was always close to 100\% and the latter was up to the 2\,ms step threshold (they were in all cases).} The upper chart sweeps a range of base RTTs (1.1\,ms--54.3\,ms) with constant 200\,Mb/s link rate, while the lower sweeps a range of link rates (16\,Mb/s -- 296\,Mb/s) at constant 16\,ms base RTT.
+
+Averaging over multiple (5) runs was necessary, because examination of time-series plots of rate show that when the rates of two identical flows get stuck in a local equilibrium, they can suddenly jump between different equilibria at what appear to be random times. Plots of Jain's fairness index were also produced (not shown) to check that the flows were not switching positions (Jain's index uses a square, so it is robust against such switching, but its numerical value is not as meaningful as a simple ratio).
+
+Setting aside the wobbly area at rates below about 120\,Mb/s (discussed below), it can be seen that EST marking maintains the highest rate ratio (i.e.\ completely removes the late-comer disadvantage) as long as the bursts are small compared to the marking threshold (using the default 250\,\(\mu\)s burst duration of TCP Prague relative to a 2\,ms step threshold). In contrast sojourn time marking falls away from the optimum as rate increases.
+
+With larger bursts (1\,ms) sojourn marking results in very poor rate ratios across the board. EST marking falls away from the optimum as BDP rises, but nothing like as badly as sojourn. 
+
+The wobbly area is believed to be caused by the burst size calculation in Linux, which always rounds down the burst size to the nearest whole packet. Examination of time series plots shows a tendency for the flows to settle in a local equilibrium with the late-comer at a lower rate. But then it will randomly jump to an equilibrium at equal rates, and sometimes jump back out to an unequal equilibrium. At low rate, the number of packets in a TSO burst is small, so the rounding is significant. It is believed that this behaviour could be solved by carrying the remainder over to the next burst size calculation, so that the late-comer sometimes sends a burst of the next size up, allowing it to push out the other flow more smoothly. The fact that the low RTT experients do not show this problem supports this hypothesis, because the burst size calculation is only dependent on flow rate, not RTT.
 
 \subsection{What Marking would be Fair?}\label{sec:marking_fairness_definition}
 
@@ -181,11 +195,9 @@ From the earlier analysis of EST-based marking of traffic bursts (\S\,\ref{sec:m
 
 \subsection{Queue Protection and Marking Fairness}\label{sec:qprot_marking_fairness}
 
-To end the section, \S\,\ref{sec:qprot_marking_fairness} discusses the necessity of fair marking if queue protection\footnote{aka.\ burst policing or latency policing} is to depend on it, and considers whether EST-based marking acts rapidly enough to be used as the basis of a queue protection function that can identify and remove bursts from an aggregate without identifying individual application flows.
+This section discusses the necessity of fair marking if queue protection\footnote{aka.\ burst policing or latency policing} is to depend on it, and considers whether EST-based marking acts rapidly enough to be used as the basis for a queue protection function that can identify and remove bursts from an aggregate without identifying individual application flows.
 
-\bob{Stitch on the above para.}
-
-The goal of queue protection (QProt) is to try to eliminate bursty traffic from a shared low latency queue. The ability of EST-based marking to focus on bursts raises the possibility of a crude form of queue protection without having to identify layer-4 flows (in contrast to per-flow QProt specified for DOCSIS~\cite{Briscoe19b:q-prot_ID}).
+The goal of queue protection (QProt) is to try to eliminate bursty traffic from a shared low latency queue~\cite[\S\,8.2]{Briscoe16a:l4s-arch_ID}. The ability of EST-based marking to focus on bursts raises the possibility of a crude form of queue protection without having to identify layer-4 flows (in contrast to per-flow QProt specified for DOCSIS~\cite{Briscoe19b:q-prot_ID}).
 
 Here an example design for aggregate QProt is proposed, for instance as an extension to the DualQ Coupled AQM. When a packet is about to be dequeued from the L queue, if the EST of the backlog behind it exceeds the maximum ECN-marking threshold\footnote{The step threshold, or the top of a ramp function.} by some margin, the head packet would be redirected to the back of the C queue.\footnote{Preferably by rearranging pointers, rather than moving the packet data.} The margin might be set, for instance, at twice the depth of the maximum marking threshold, or it might be slightly randomized to discouraging sources from `flying just under the radar'. Once redirection had started, it would continue until the EST at least reduced below the allowed margin, or preferably it could continue until the EST had been brought down to the maximum ECN marking threshold. 
 
