@@ -1,5 +1,5 @@
 #! /bin/octave -qf
-# Scan Blame Shifting problem space
+# Scan the blame-shifting problem space
 # Copyright (c) 2022-23 Bob Briscoe 
 #
 #    This program is free software; you can redistribute it and/or modify
@@ -13,21 +13,18 @@
 #    GNU General Public License for more details.
 
 ## ToDo:
-## * pretty plotting
-##   - p_stats: margins, 
-##   - qt_mode: plot at and either side of discontinuities 
 ## * Investigate why the queue has brief empty periods in the following:
-##    blameshift_unresp_output_lambdaSum100_betaSum125_betas400_i1_j50_k1_20230109-154003
-## * Understand why p_e dips between the two discontinuities
-## * Call post-processing and plotting from script directly
-## * Reconsider structure of output
-## * Tidy code into functions
+##    blameshift_unresp_qt_out_lambdaSum100_betaSum125_betas400_i1_j50_k1_20230109-154003
+## * Understand why 
+##   - p_e dips between the two discontinuities
+##   - qt_mode: plot at and either side of discontinuities 
+## * Tidy code into functions before publication
 
 clear
 
 # Primary parameters
 lambdaSum = 1;		# Utilization
-betaSum = 17/16;	# Max combined normalized burst delay (wrt marking threshold)
+betaSum = 5/4;	# Max combined normalized burst delay (wrt marking threshold)
 if (lambdaSum > 1)
   error("utilization parameter 'lambdaSum' cannot exceed 100%");
 endif
@@ -42,75 +39,26 @@ phis = 8;		# no. of steps of phase shift, phi, in 360deg
 
 # set qt_mode to true(1) to produce one time series of the queue
 # set qt_mode to false(1) to scan parameter space and produce marking statistics
-qt_mode = false(1); 
-i_lambda = 5; # index of lambda to plot if in qt_mode
-i_beta = 14;  # index of beta   to plot if in qt_mode
-i_phi = 1;    # index of phi to plot if in qt_mode
-if (qt_mode && (i_lambda < 1 || i_lambda > lambdas) )
-  error("capacity share index parameter 'i_lambda' outside valid range");
-endif
-if (qt_mode && (i_beta < 1 || i_beta > betas) )
-  error("burst size index parameter 'i_beta' outside valid range");
-endif
-if (qt_mode && (i_phi < 1 || i_phi > phis) )
-  error("burst size index parameter 'i_beta' outside valid range");
+qt_mode = true(1);
+if (qt_mode)
+  i_lambda = 1; # index of lambda to plot if in qt_mode
+  i_beta = 50;  # index of beta   to plot if in qt_mode
+  i_phi = 1;    # index of phi    to plot if in qt_mode
+  if (i_lambda < 1 || i_lambda > lambdas)
+    error("capacity share index parameter 'i_lambda' outside valid range");
+  endif
+  if (i_beta < 1 || i_beta > betas)
+    error("burst size index parameter 'i_beta' outside valid range");
+  endif
+  if (i_phi < 1 || i_phi > phis)
+    error("burst size index parameter 'i_beta' outside valid range");
+  endif
 endif
 
 savepre = [mfilename()];
 savemid = ["lambdaSum", num2str(lambdaSum*100), ...
               "_betaSum", num2str(betaSum*100), "_betas", num2str(betas)];
 savesuf = ["_", strftime("%Y%m%d-%H%M%S", localtime (time ()))];
-
-## ============================================================================
-## # Manifest of variables
-## # =====================
-## 
-## # Input Parameters
-## lambda           [lambdaSum-1, 2         ]
-## beta             [2,           betaSum-1 ]
-## phi              [phis        ]
-## 
-## # Limits
-## lambdaSum
-## betaSum
-## lambdas
-## betas
-## phis
-## 
-## # Indices (mostly prefixed by 'i_')
-## i_lambda, i : index of lambda (range and single value)
-## i_beta,   j : index of beta   (range and single value)
-## i_phi,    k : index of phi    (range and single value)
-## i_event
-## i_freq
-## i_rare
-## i_head
-## i_other
-## i_next_burst
-##
-## # Counters
-## c
-## 
-## # Time intervals
-## t
-## t_delta0
-## t_delta
-## t_delta_max
-## ti               [lambdaSum-1, betaSum-1,      2 ]
-## t_max            [lambdaSum-1, betaSum-1 ]
-## t_burst          [2  ]
-## t_next_burst
-## t_next_empty
-##
-## # Queue delays
-## q_xs
-##
-## # Outputs
-## q                [2  ]
-## ott
-## output           [nnn,         8]
-## p                [phis+1,      2,              2 ]
-## ============================================================================
 
 # Upscale primary parameters to integers
 lambdaSum *= lambdas;
@@ -122,11 +70,11 @@ betaSum = cast(betaSum, "uint16");
 # Two flows, a&b are represented by slices 1&2
 # The second flow's capacity share and burst size use up the remainder of
 #  lambdaSum and betaSum
-lambda = linspace(1, lambdaSum - 1, lambdaSum - 1);
+lambda = 1 : lambdaSum - 1;
 lambda = [lambda; lambdaSum - lambda]';
-beta = linspace(1, betaSum - 1, betaSum - 1);
+beta = 1 : betaSum - 1;
 beta = [beta; betaSum - beta];
-phi = linspace(0, phis - 1, phis);
+phi = 0 : phis - 1;
 #
 #                     [ 1, ... beta(1,:) ... betasSum - 1 ]
 #  _              _   _         beta(2,:)                _ ]
@@ -233,7 +181,7 @@ for i = i_lambda
     
     # k : index of phi
     for k = i_phi
-      clear output;
+      clear qt_out;
     
       # Variable definitions
       #  t :            current time
@@ -302,11 +250,11 @@ for i = i_lambda
       q = zeros(2,1);     # queue delay contributed by each flow
       ott = 0;            # whether combined queue is over the threshold (q>=1)
       #
-      # The output matrix is filled as time is scanned:
-      #  * output(:,1) : time of next event; 
-      #  * output(:,2:3) : resulting per flow queue contribution at that time; 
-      #  * output(:,4) : which flow is at the head of the q; 0:1 means q(1:2);
-      #  * output(:,5) : whether queue is above threshold (q>=1) after t.
+      # The qt_out matrix is filled as time is scanned:
+      #  * qt_out(:,1) : time of next event; 
+      #  * qt_out(:,2:3) : resulting per flow queue contribution at that time; 
+      #  * qt_out(:,4) : which flow is at the head of the q; 0:1 means q(1:2);
+      #  * qt_out(:,5) : whether queue is above threshold (q>=1) after t.
       while (t <= t_max(i,j))
       
         # The contributions from each flow to the queue are piecewise linear
@@ -331,16 +279,16 @@ for i = i_lambda
             p(k, i_head, 2) += q_xs;
             q(i_head) -= q_xs;
             if (qt_mode)
-              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
             endif
             ott = 0;
             # The earlier condition (q_xs <= t_next_burst - t) could have been
-            #  changed to < to suppress the following output in the case when it
+            #  changed to < to suppress the following qt_out in the case when it
             #  seems redundant when q drains exactly to the threshold just
             #  before a burst. But, for robustness, if (q==1) ott=0, even if q
             #  is about to increase again.
             if (qt_mode)
-              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
             endif
         else
           if ((q(i_head) > 0) && (t_next_empty <= t_next_burst))
@@ -359,12 +307,13 @@ for i = i_lambda
             i_other = !(i_head-1) + 1;
             if (q(i_other) > 0)
               if (qt_mode)
-                output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+                qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
               endif
               i_head = i_other;
+              # No need to update i_other - not used elsewhere
             endif
             if (qt_mode)
-              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
             endif
           else
             # Burst has arrived
@@ -382,7 +331,7 @@ for i = i_lambda
               break
             endif
             if (qt_mode)
-              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
             endif
             # Add burst to tail
             #  but first check whether combined queue rises above threshold
@@ -391,7 +340,7 @@ for i = i_lambda
               q(i_next_burst) -= q_xs;
               delta_q += q_xs;
               if (qt_mode)
-                output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+                qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
               endif
               ott = 1;
             endif
@@ -401,7 +350,7 @@ for i = i_lambda
               p(k, i_next_burst, 1) += delta_q;
             endif
             if (qt_mode)
-              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
             endif
             
             # Prepare for next burst
@@ -442,14 +391,98 @@ for i = i_lambda
 endfor
 
 if (qt_mode)
-  savefile = [savepre, "_output_", savemid, ... 
+  # post-process qt_out matrix
+  # To simplify plotting, split up flows into EST-marked and unmarked columns
+  #  and split flow 'a' into head and tail columns, resulting in:
+  # 1: time of next event
+  # 2: q_a if at head; unmarked
+  # 3: q_a if at head; marked
+  # 4: q_b unmarked
+  # 5: q_b marked
+  # 6: q_a if at tail
+  # 7: i_head-1
+  # 8: ott
+ qt_out = [qt_out(:,1), ... 
+           qt_out(:,2) .*  !qt_out(:,4) .* !qt_out(:,5), ...
+           qt_out(:,2) .*  !qt_out(:,4) .*  qt_out(:,5), ...
+           qt_out(:,3) .* !(qt_out(:,4) .*  qt_out(:,5)), ...
+           qt_out(:,3) .*  (qt_out(:,4) .*  qt_out(:,5)), ...
+           qt_out(:,2) .*   qt_out(:,4), ...
+           qt_out(:,4:5)];
+  # Convert to stacked plot
+  ## Commented out: no need because built in to area() function
+  ##qt_out(:,2:4) = cumsum(qt_out(:,2:4), 2);
+  savefile = [savepre, "_qt_out_", savemid, ... 
               "_i", num2str(i_lambda), ...
               "_j", num2str(i_beta), ...
               "_k", num2str(i_phi), ...
               savesuf];
-  save("-binary", [savefile ".bin"], "savefile", "output");
+  save("-binary", [savefile ".bin"], "savefile", "qt_out");
 else
   savefile = [savepre, "_p_stats_", savemid, savesuf];
-  save("-binary", [savefile ".bin"], "savefile", "lambdaSum", "lambdas", "betaSum", "betas", "beta", "p_stats");
+  save("-binary", [savefile ".bin"], "savefile", ...
+       "lambdaSum", "lambdas", "betaSum", "betas", "beta", "p_stats");
 endif
+
+## ============================================================================
+## # Manifest of variables
+## # =====================
+## 
+## # Input Parameters
+## lambda           [lambdaSum-1, 2         ]
+## beta             [2,           betaSum-1 ]
+## phi              [phis        ]
+## qt_mode          logical
+## 
+## # Limits
+## lambdaSum
+## betaSum
+## lambdas
+## betas
+## phis
+## 
+## # Indices (mostly prefixed by 'i_')
+## i_lambda, i : index of lambda (range and single value)
+## i_beta,   j : index of beta   (range and single value)
+## i_phi,    k : index of phi    (range and single value)
+## i_event
+## i_freq
+## i_rare
+## i_head
+## i_other
+## i_next_burst
+##
+## # Counters
+## c
+## 
+## # Time intervals
+## t
+## t_delta0
+## t_delta
+## t_delta_max
+## ti               [lambdaSum-1, betaSum-1,      2 ]
+## t_max            [lambdaSum-1, betaSum-1 ]
+## t_burst          [2  ]
+## t_next_burst
+## t_next_empty
+##
+## # Queue delays
+## q_xs
+## delta_q
+## q_xs
+##
+## # Outputs
+## q                [2  ]
+## ott
+## qt_out           [nnn,         8]
+## p                [phis+1,      2,              2 ]
+## p_stats          [lambdaSum-1, betaSum-1, 2, 2, 2]
+##
+## # Strings
+## savefile
+## savepre
+## savemid
+## savesuf
+## ============================================================================
+
 
