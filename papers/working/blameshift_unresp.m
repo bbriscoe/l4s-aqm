@@ -35,15 +35,15 @@ endif
 #  with implicit denominators lambdas, betas & phis, resp.
 #  (except after setup, when beta is cast to double and downscaled), 
 lambdas = 16;		# no. of steps of capacity share, lambda
-betas = 400;		# no. of steps of normalized burst delay, beta
-phis = 8;		# no. of steps of phase shift, phi, in 360deg
+betas = 64;		# no. of steps of normalized burst delay, beta
+phis = 4;		# no. of steps of phase shift, phi, in 360deg
 
 # set qt_mode to true(1) to produce one time series of the queue
 # set qt_mode to false(1) to scan parameter space and produce marking statistics
 qt_mode = true(1);
 if (qt_mode)
-  i_lambda = 1; # index of lambda to plot if in qt_mode
-  i_beta = 50;  # index of beta   to plot if in qt_mode
+  i_lambda = 6; # index of lambda to plot if in qt_mode
+  i_beta = 60;  # index of beta   to plot if in qt_mode
   i_phi = 2;    # index of phi    to plot if in qt_mode
   if (i_lambda < 1 || i_lambda > lambdas)
     error("capacity share index parameter 'i_lambda' outside valid range");
@@ -52,7 +52,7 @@ if (qt_mode)
     error("burst size index parameter 'i_beta' outside valid range");
   endif
   if (i_phi < 1 || i_phi > phis)
-    error("burst size index parameter 'i_beta' outside valid range");
+    error("burst size index parameter 'i_phi' outside valid range");
   endif
 endif
 
@@ -148,15 +148,18 @@ for i = i_lambda
     printf("%d%%\n", double(i)/double(lambdaSum)*100);
   endif
   for j = i_beta
-    printf(".");
+    if (!qt_mode)
+      printf(".");
+    endif
     ##printf("%d,", j);
-    # i_freq indexes the flow with more frequent bursts or smaller burst size in
+    # i_freq indexes the flow with more frequent bursts or larger burst size in
     #  case of a tie
+    ## ToDo: Check switch from picking smaller bursts hasn't affected sthg else
     # i_rare indexes the other flow
     if (ti(i,j,1) != ti(i,j,2))
       [~, i_freq] = min(ti(i,j,:));
     else
-      [~, i_freq] = min(beta(:,j));
+      [~, i_freq] = max(beta(:,j));
     endif
     i_rare = !(i_freq-1) + 1;
     
@@ -211,15 +214,17 @@ for i = i_lambda
       #  * or forward to the next rare burst
       #  'cos the max phase shift has to be between bursts of different types
       #
-      t = 0;  ## ToDo: Not needed?
-      c = 0;                                   # rare burst counter
+      t = 0;
+      c = 0;                                   # freq burst counter
       t_delta_max = zeros(1,2);                # max phase shift so far
       # 'Seed' the initial phase shift using fraction phi of the freq interval
-      t_delta0 = ti(i,j,i_freq) * phi(k)/phis;
+      t_delta0 = ti(i,j,i_freq) * phi(k)/phis; # start from a rare burst
       while (t <= t_max(i,j))
-        t = t_delta0 + c * ti(i,j,i_rare);     # time of each rare burst
-        t_delta(1) = rem(t, ti(i,j,i_freq));   # shift back to last freq burst
-        t_delta(2) = ti(i,j,i_freq) - t_delta(1); # shift fwd to next freq burst
+        t = t_delta0 + c * ti(i,j,i_freq);     # time of each freq burst
+        t_delta(1) = rem(t, ti(i,j,i_rare));   # shift back to last rare burst
+        t_delta(2) = ti(i,j,i_rare) - t_delta(1); # shift fwd to next rare burst
+        ## ToDo: Redundant? No: If freq empties before rare, t=0 at rare. See:
+        # lambdaSum = 1, betaSum = 5/4, lambda = 6/16, beta = 60/64, phi = ?/4
         t_delta_max = max(t_delta, t_delta_max);
         ## ToDo: might be able to set i_next_burst here, sthg like:
         ## [t_next_burst, i_next_burst] = min(t_burst);
@@ -227,22 +232,23 @@ for i = i_lambda
       endwhile
       clear c;
 
-      # Set defaults for case where t=0, q=0 at the start of a rare burst.
-      # In each case, i_head is pointed to the flow that bursts at the origin
-      #  and t_burst[2], the time until the next burst for each flow, is set.
-      if ( t_delta_max(2) > t_delta_max(1) )
-        # q=0 at start of first freq burst
+      # In each case, i_next_burst and i_head are pointed to the flow that 
+      #  bursts at the origin and the time until the next burst for each flow, 
+      #  t_burst[2], is set.
+      ## ToDo: Rewrite comments for commented out code below.
+##      if ( t_delta_max(2) <= t_delta_max(1) )
+        # q=0 at start of freq burst
         i_next_burst = i_head = i_freq;
         t_burst(i_freq) = 0;
-        t_burst(i_rare) = ti(i,j,i_rare) - t_delta_max(2);    # >= 0
-      else
-        # q=0 at start of first rare burst (or t_delta_max == 0, i.e. sync'd)
-        i_next_burst = i_head = i_rare;
-        t_burst(i_rare) = 0;
-        t_burst(i_freq) = ti(i,j,i_freq) - t_delta_max(1);    # >= 0
-      endif
+        t_burst(i_rare) = ti(i,j,i_rare) - t_delta_max(1);    # >= 0
+##      else
+##        # q=0 at start of rare burst (ToDo: or t_delta_max == 0, i.e. sync'd)
+##        i_next_burst = i_head = i_rare;
+##        t_burst(i_rare) = 0;
+##        t_burst(i_freq) = ti(i,j,i_freq) - t_delta_max(1);    # >= 0
+##      endif
       # Special case when bursts coincide
-      if (max(t_delta_max) == ti(i,j,i_freq))
+      if (max(t_delta_max) == ti(i,j,i_rare))
         [~, i_next_burst] = min(beta(:,j));
         t_burst(i_rare) = t_burst(i_freq) = 0;
       endif
@@ -281,31 +287,43 @@ for i = i_lambda
         q_xs = sum(q) - 1;            # Excess q above threshold (could be -ve)
         # Check whether combined q falls below threshold 
         #  before head q empties or burst arrives
-        if ( (q_xs > 0) && ...
+        if ( (ott) && ...
              ( ((t_next_empty <= t_next_burst) && (q_xs <= q(i_head))) || ...
                ((t_next_empty > t_next_burst) && (q_xs <= t_next_burst - t)) ...
              ) ...
            )
-            # Combined queue has fallen below threshold before any other event
-            t += q_xs;
-            if (t > t_max(i,j))
-              break
+          # Combined queue has fallen below threshold before any other event
+          t += q_xs;
+          if (t > t_max(i,j))
+            break
+          endif
+          # Add to p_e
+          p(k, i_head, 2) += q_xs;
+          q(i_head) -= q_xs;
+          if (qt_mode)
+            qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+          endif
+          ott = 0;
+          # The earlier condition (q_xs <= t_next_burst - t) could have been
+          #  changed to < to suppress the following qt_out in the case when it
+          #  seems redundant when q drains exactly to the threshold just
+          #  before a burst. But, for robustness, if (q==1) ott=0, even if q
+          #  is about to increase again.
+          if (qt_mode)
+            qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+          endif
+          # Special case of q(i_head) emptying just as tail crosses threshold
+          if (t >= t_next_empty)
+            # Point i_head to other flow's queue if it's non-negative
+            i_other = !(i_head-1) + 1;
+            if (q(i_other) > 0)
+              if (qt_mode)
+                qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              endif
+              i_head = i_other;
+              # No need to update i_other - not read elsewhere
             endif
-            # Add to p_e
-            p(k, i_head, 2) += q_xs;
-            q(i_head) -= q_xs;
-            if (qt_mode)
-              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-            endif
-            ott = 0;
-            # The earlier condition (q_xs <= t_next_burst - t) could have been
-            #  changed to < to suppress the following qt_out in the case when it
-            #  seems redundant when q drains exactly to the threshold just
-            #  before a burst. But, for robustness, if (q==1) ott=0, even if q
-            #  is about to increase again.
-            if (qt_mode)
-              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-            endif
+          endif
         else
           if ((q(i_head) > 0) && (t_next_empty <= t_next_burst))
             # q(i_head) has emptied (defer any simultaneous burst to next event)
@@ -326,7 +344,7 @@ for i = i_lambda
                 qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
               endif
               i_head = i_other;
-              # No need to update i_other - not used elsewhere
+              # No need to update i_other - not read elsewhere
             endif
             if (qt_mode)
               qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
@@ -353,6 +371,8 @@ for i = i_lambda
             #  but first check whether combined queue rises above threshold
             delta_q = beta(i_next_burst,j);
             if ( (ott == 0) && (q_xs + beta(i_next_burst,j) > 0) )
+              # Take care! if (q_xs + beta == tiny), e.g tiny = 1.1102e-16
+              #  after q incremented as below, q_xs = (sum(q) - 1) == 0;
               q(i_next_burst) -= q_xs;
               delta_q += q_xs;
               if (qt_mode)
