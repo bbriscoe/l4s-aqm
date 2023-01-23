@@ -1,4 +1,4 @@
-# blameshift_unresp_plot.m
+# blameshift_unresp_plot_qt.m
 # Plot time series of two unresponsive bursty flows to illustrate blame-shifting
 #  Optionally display ECN marking of each flow
 #
@@ -6,6 +6,10 @@
 
 # Input parameter
 est_marking = true(1);    # plot est-marked traffic darker if true
+
+# Convert to stacked plot
+## Commented out: no need because built in to area() function
+##qt_out(:,2:4) = cumsum(qt_out(:,2:4), 2);
 
 figure(3);
 h_a = area(qt_out(:,1), qt_out(:,2:6));
@@ -37,4 +41,4 @@ else
   h_leg = legend("q_a  ", "", "q_b  ", "location", "northeastoutside");
 endif
 set(h_leg, 'fontname', 'Times New Roman', 'fontsize', 14)
-print([savefile ".pdf"]);
+print([data_dir savefile ".pdf"]);

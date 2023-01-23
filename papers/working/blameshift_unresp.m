@@ -13,6 +13,7 @@
 #    GNU General Public License for more details.
 
 ## ToDo:
+## * Write parameterized plot_stats script
 ## * Check whether code completes properly at each t_max limit (scan #1 & #2)
 ## * Understand why 
 ##   - p_e dips between the two discontinuities
@@ -33,17 +34,17 @@ endif
 #  with implicit denominators lambdas, betas & phis, resp.
 #  (except after setup, when beta is cast to double and downscaled), 
 lambdas = 16;		# no. of steps of capacity share, lambda
-betas = 64;		# no. of steps of normalized burst delay, beta
+betas = 32;		# no. of steps of normalized burst delay, beta
 phis = 4;		# no. of steps of phase shift, phi, in 360deg
 smidgen = 0.123456789;  # To avoid unrealistic degree of exact phase lock
 
 
 # set qt_mode to true(1) to produce one time series of the queue
 # set qt_mode to false(1) to scan parameter space and produce marking statistics
-qt_mode = true(1);
+qt_mode = false(1);
 if (qt_mode)
   i_lambda = 6; # index of lambda to plot if in qt_mode
-  i_beta = 29;  # index of beta   to plot if in qt_mode
+  i_beta = 15;  # index of beta   to plot if in qt_mode
   i_phi = 4;    # index of phi    to plot if in qt_mode
   if (i_lambda < 1 || i_lambda > lambdas)
     error("capacity share index parameter 'i_lambda' outside valid range");
@@ -213,11 +214,11 @@ for i = i_lambda
       # 'Seed' the initial phase shift using fraction phi of the freq interval
       t_delta0 = ti(i,j,i_freq) * (phi(k)+smidgen)/phis; # start at a freq burst
       # Vector of rare burst times
-      tmp_times = t_delta0 : ti(i,j,i_rare) : t_max(i,j);
+      t_delta = t_delta0 : ti(i,j,i_rare) : t_max(i,j);
       # Replace with vector of phase shifts from previous freq burst
-      tmp_times = rem(tmp_times, ti(i,j,i_freq));
-      t_delta_min = min(tmp_times);
-      clear tmp_times;
+      t_delta = rem(t_delta, ti(i,j,i_freq));
+      t_delta_min = min(t_delta);
+      clear t_delta;
       # Whether q=0 at the start or end of the min phase shift from freq to rare
       #  depends on whether the freq burst is large enough to keep the queue 
       #  busy over t_delta_min.
@@ -403,6 +404,10 @@ for i = i_lambda
   endfor
 endfor
 
+data_dir = "";
+if (exist("octave_data", "dir"))
+  data_dir = "octave_data/";
+endif
 if (qt_mode)
   # post-process qt_out matrix
   # To simplify plotting, split up flows into EST-marked and unmarked columns
@@ -422,18 +427,15 @@ if (qt_mode)
            qt_out(:,3) .*  (qt_out(:,4) .*  qt_out(:,5)), ...
            qt_out(:,2) .*   qt_out(:,4), ...
            qt_out(:,4:5)];
-  # Convert to stacked plot
-  ## Commented out: no need because built in to area() function
-  ##qt_out(:,2:4) = cumsum(qt_out(:,2:4), 2);
   savefile = [savepre, "_qt_out_", savemid, ... 
               "_i", num2str(i_lambda), ...
               "_j", num2str(i_beta), ...
               "_k", num2str(i_phi), ...
               savesuf];
-  save("-binary", [savefile ".bin"], "savefile", "qt_out");
+  save("-binary", [data_dir savefile ".bin"], "savefile", "qt_out");
 else
   savefile = [savepre, "_p_stats_", savemid, savesuf];
-  save("-binary", [savefile ".bin"], "savefile", ...
+  save("-binary", [data_dir savefile ".bin"], "savefile", ...
        "lambdaSum", "lambdas", "betaSum", "betas", "beta", "p_stats");
 endif
 
@@ -453,6 +455,9 @@ endif
 ## lambdas
 ## betas
 ## phis
+##
+## # Constant
+## smidgen
 ## 
 ## # Indices (mostly prefixed by 'i_')
 ## i_lambda, i : index of lambda (range and single value)
@@ -465,14 +470,11 @@ endif
 ## i_other
 ## i_next_burst
 ##
-## # Counters
-## c
-## 
 ## # Time intervals
 ## t
 ## t_delta0
-## t_delta
-## t_delta_max
+## t_delta          [1, nnn]
+## t_delta_min
 ## ti               [lambdaSum-1, betaSum-1,      2 ]
 ## t_max            [lambdaSum-1, betaSum-1 ]
 ## t_burst          [2  ]
@@ -482,12 +484,11 @@ endif
 ## # Queue delays
 ## q_xs
 ## delta_q
-## q_xs
 ##
 ## # Outputs
 ## q                [2  ]
 ## ott
-## qt_out           [nnn,         8]
+## qt_out           [mmm,         8]
 ## p                [phis+1,      2,              2 ]
 ## p_stats          [lambdaSum-1, betaSum-1, 2, 2, 2]
 ##
