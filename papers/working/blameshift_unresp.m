@@ -1,67 +1,33 @@
+#! /bin/octave -qf
 # Scan Blame Shifting problem space
+# Copyright (c) 2022-23 Bob Briscoe 
+#
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
 
 ## ToDo:
-## * Debug (i,j,k) = (17,2,5) underutilization
-## * Test a few other (i,j,k)
-## * averaging over all phase angles
-## * choosing which points in the parameter space to output
-## * for loops
 ## * pretty plotting
+##   - p_stats: margins, 
+##   - qt_mode: plot at and either side of discontinuities 
+## * Investigate why the queue has brief empty periods in the following:
+##    blameshift_unresp_output_lambdaSum100_betaSum125_betas400_i1_j50_k1_20230109-154003
+## * Understand why p_e dips between the two discontinuities
+## * Call post-processing and plotting from script directly
+## * Reconsider structure of output
+## * Tidy code into functions
 
-clear 
-
-## ============================================================================
-## # Manifest of variables
-## # =====================
-## # Scalars
-## # _______
-## 
-## # Limits
-## lambdaSum
-## betaSum
-## 
-## # Steps
-## lambdas
-## betas
-## phis
-## 
-## # Pointers
-## i_event
-## i_freq
-## i_rare
-## i_head
-## i_other
-## i_burst_next
-## 
-## # Times
-## t
-## t_burst_next
-## 
-## # Matrices
-## # ________
-## 
-## # Input Parameters
-## lambda[lambdaSum-1, 2]
-## beta[2, betaSum-1]
-## phi[phis]
-## 
-## # Time intervals
-## t_max[lambdaSum-1, betaSum-1]
-## ti[lambdaSum-1, betaSum-1, 2]
-## 
-## q[2]
-## t_burst[2]
-## 
-## output[???] {
-## t,
-## q[2],
-## head
-## }
-## ============================================================================
+clear
 
 # Primary parameters
 lambdaSum = 1;		# Utilization
-betaSum = 5/4;		# Max combined normalized burst delay (wrt marking threshold)
+betaSum = 17/16;	# Max combined normalized burst delay (wrt marking threshold)
 if (lambdaSum > 1)
   error("utilization parameter 'lambdaSum' cannot exceed 100%");
 endif
@@ -70,9 +36,81 @@ endif
 # lambda, beta & phi are held as integers 
 #  with implicit denominators lambdas, betas & phis, resp.
 #  (except after setup, when beta is cast to double and downscaled), 
-lambdas = 32;		# no. of steps of capacity share, lambda
-betas = 16;		# no. of steps of normalized burst delay, beta
+lambdas = 16;		# no. of steps of capacity share, lambda
+betas = 400;		# no. of steps of normalized burst delay, beta
 phis = 8;		# no. of steps of phase shift, phi, in 360deg
+
+# set qt_mode to true(1) to produce one time series of the queue
+# set qt_mode to false(1) to scan parameter space and produce marking statistics
+qt_mode = false(1); 
+i_lambda = 5; # index of lambda to plot if in qt_mode
+i_beta = 14;  # index of beta   to plot if in qt_mode
+i_phi = 1;    # index of phi to plot if in qt_mode
+if (qt_mode && (i_lambda < 1 || i_lambda > lambdas) )
+  error("capacity share index parameter 'i_lambda' outside valid range");
+endif
+if (qt_mode && (i_beta < 1 || i_beta > betas) )
+  error("burst size index parameter 'i_beta' outside valid range");
+endif
+if (qt_mode && (i_phi < 1 || i_phi > phis) )
+  error("burst size index parameter 'i_beta' outside valid range");
+endif
+
+savepre = [mfilename()];
+savemid = ["lambdaSum", num2str(lambdaSum*100), ...
+              "_betaSum", num2str(betaSum*100), "_betas", num2str(betas)];
+savesuf = ["_", strftime("%Y%m%d-%H%M%S", localtime (time ()))];
+
+## ============================================================================
+## # Manifest of variables
+## # =====================
+## 
+## # Input Parameters
+## lambda           [lambdaSum-1, 2         ]
+## beta             [2,           betaSum-1 ]
+## phi              [phis        ]
+## 
+## # Limits
+## lambdaSum
+## betaSum
+## lambdas
+## betas
+## phis
+## 
+## # Indices (mostly prefixed by 'i_')
+## i_lambda, i : index of lambda (range and single value)
+## i_beta,   j : index of beta   (range and single value)
+## i_phi,    k : index of phi    (range and single value)
+## i_event
+## i_freq
+## i_rare
+## i_head
+## i_other
+## i_next_burst
+##
+## # Counters
+## c
+## 
+## # Time intervals
+## t
+## t_delta0
+## t_delta
+## t_delta_max
+## ti               [lambdaSum-1, betaSum-1,      2 ]
+## t_max            [lambdaSum-1, betaSum-1 ]
+## t_burst          [2  ]
+## t_next_burst
+## t_next_empty
+##
+## # Queue delays
+## q_xs
+##
+## # Outputs
+## q                [2  ]
+## ott
+## output           [nnn,         8]
+## p                [phis+1,      2,              2 ]
+## ============================================================================
 
 # Upscale primary parameters to integers
 lambdaSum *= lambdas;
@@ -106,8 +144,11 @@ phi = linspace(0, phis - 1, phis);
 
 # Interval between bursts, ti = beta/lambda
 # Compute matrix of intervals (in unscaled time units)
-ti(:,:,1) = double(lambdas/betas * beta(1,:)) ./ double(lambda(:,1));
-ti(:,:,2) = double(lambdas/betas * beta(2,:)) ./ double(lambda(:,2));
+ti(:,:,1) = (double(beta(1,:)) ./ double(lambda(:,1)) * lambdas/betas);
+ti(:,:,2) = (double(beta(2,:)) ./ double(lambda(:,2)) * lambdas/betas);
+if (min(min(min(ti))) == 0)
+  error("At least one interval between bursts 'ti' is zero");
+endif
 
 # No need to run time beyond when the pattern of the two cyclic bursts repeats,
 #  which is the lowest common multiple of the intervals of flows a & b
@@ -120,19 +161,16 @@ ti(:,:,2) = double(lambdas/betas * beta(2,:)) ./ double(lambda(:,2));
 #  and divide the result by the same.
 #  t_max = lcm(betas*lambdas*beta_1*lambda_2, betas*lambdas*beta_2*lambda_1) /
 #                             betas*lambdas * lambda_1*lambda_2
-## lambda = [31/32;1/32] beta = [2/16,18/16]
-## t_max = lcm(16/32*1/32*2/16, 16/32*31/32*18/16) / (16*32*31/32*1/32)
-##       = lcm(1*2,31*18) * 2 / (31*1)
 
 ti_tmp(:,:,1) = beta(1,:) .* lambda(:,2);
 ti_tmp(:,:,2) = beta(2,:) .* lambda(:,1);
-t_max = lcm(uint16(ti_tmp(:,:,1)), uint16(ti_tmp(:,:,2)));
+t_max = lcm(uint32(ti_tmp(:,:,1)), uint32(ti_tmp(:,:,2)));
 if (lambdas >= betas)
   t_max *= lambdas/betas;  # multiply before saturation check
 endif
 clear ti_tmp;
-if (max(max(t_max)) == intmax("uint16"))
-  error("lcm() saturated at least one uint16 element of 't_max'");
+if (max(max(t_max)) == intmax("uint32"))
+  error("lcm() saturated at least one uint32 element of 't_max'");
 endif
 # Cast t_max to FP and downscale
 t_max = double(t_max) ./ double(lambda(:,1) .* lambda(:,2));
@@ -142,120 +180,276 @@ endif
 # Cast beta to FP and downscale
 beta = double(beta) ./ betas;
 
-## For fast testing, temporarily pick test values of i,j
-#  ToDo: (to be replaced by nested for loops)
-i = 17; # index of lambda
-j = 2;  # index of beta
+# p_stats(i,j,flow-id,approach,statistic), where
+# i       : index of lambda
+# j       : index of beta
+# flow-id : 1,2 = flow a,b
+# approach : 1,2 = soj,est
+# statistic : 1,2 = mean,std-dev
+p_stats = zeros(lambdaSum-1,betaSum-1,2,2,2);
 
-# i_freq indexes the more frequent slice 
-#  (i.e. the flow with lower interval between bursts)
-#  strictly i_freq is the slice that is not less frequent, i.e. might be same
-# i_ indexes the other flow
-[~, i_freq] = min(ti(i,j,:));
-i_rare = !(i_freq-1) + 1;
-## ToDo: catch case when both the same interval
-
-# As long as utilization < 100% and bursts are evenly spaced, 
-#  there cannot be >1 sequence of packets from each flow in the queue at once
-# So a vector of 2 queue sizes and a 2-state integer 'i_head' indexing the flow
-#  at the head are sufficient to fully describe the queue at any one time
-
-## For fast testing, temporarily pick a test value of k
-# ToDo: replace with for k = 1 : phis
-k = 5;  # index of phi
-
-# Variable definitions
-#  t :            current time
-#  i_head :       which flow is at the head of the queue
-#  t_burst[2] : start time of next burst from each flow
-#  i_burst_next : which burst is next
-
-# Define t=0 & q=0 at the point when the combined queue is smallest
-#  assuming no standing queue, given utilization <= 100%
-# Each rare burst is scanned to find the max phase shift back to the last freq 
-#  burst that is still draining (if any). Then, at the start of this freq burst,
-#  t=0, q=0, t_burst(i_freq)=0.
-#  Then t_burst(i_rare) should be set to the max phase shift, t_delta_max.
-# If no rare bursts arrive at a non-empty queue, at the start of any rare burst 
-#  t=0, q=0, t_burst(i_rare)=0.
-# Depending on which case, i_head is pointed to the flow that bursts at t=0
-t = 0;
-c = 0;                                         # rare burst counter
-t_delta0 = ti(i,j,i_freq) * (1 - phi(k)/phis); # initial phase shift
-t_delta_max = 0;                               # max overlapping phase shift
-t_burst(i_freq) = t_delta0;
-i_head = i_rare;
-while (t <= t_max(i,j))
-  t = t_delta0 + c * ti(i,j,i_rare);           # time of each rare burst
-  t_delta = rem(t, ti(i,j,i_freq));            # phase shift at each rare burst
-  if ( (t_delta > t_delta_max) && (t_delta <= beta(i_freq,j)) )
-    t_delta_max = t_delta;
-  endif
-  c++;
-endwhile
-t_burst(i_rare) = t_delta_max;
-if (t_delta_max > 0)
-  # queue empty at start of first i_freq burst (or of both)
-  t_burst(i_freq) = 0;
-  i_head = i_freq;
+if (!qt_mode)
+  i_lambda = 1 : lambdaSum - 1;
+  i_beta = 1 : betaSum - 1;
+  i_phi = 1 : phis;
 endif
 
-# Now run through time again to calculate the queue
-t = 0;
-i_event = 0;    # Event index
-q = zeros(2,1); # queue delay contributed by each flow
-while (t <= t_max(i,j))
-
-  # Calc arrival time and flow id of next burst
-  [t_burst_next, i_burst_next] = min(t_burst);
-  # If there's a tie, point i_burst_next to the index of the smaller burst
-  #  (otherwise min() points i_burst_next to the lower index)
-  if (t_burst(1) == t_burst(2))
-    [~, i_burst_next] = min(beta(:,j));
+for i = i_lambda
+  if (!qt_mode)
+    printf("%d%%\n", double(i)/double(lambdaSum)*100);
   endif
-  
-  # The contributions from each flow to the queue are piecewise linear between
-  # 'events', where an 'event' is a discontinuity in one of the contributions
-  # Output matrix:
-  #  * output(:,1) : time of next event; 
-  #  * output(:,2:3) : resulting per flow queue contribution at that time; and 
-  #  * output(:,4) : zero (placeholder)
-  #  * output(:,5) : which flow is at the head of the queue; 0:1 means q(1:2).
-  if ((q(i_head) > 0) && (t + q(i_head) <= t_burst_next))
-    # q(i_head) has emptied (defer any simultaneous burst to next event)
-    t += q(i_head);
-##    if (t > t_max(i,j))
-##      break
-##    endif
-    q(i_head) = 0;
-    # Point i_head to other flow's queue if it's non-negative
-    i_other = !(i_head-1) + 1;
-    if (q(i_other) > 0)
-      output(++i_event,:) = [t, q(1), q(2), 0, i_head-1];
-      i_head = i_other;
+  for j = i_beta
+    printf(".");
+    ##printf("%d,", j);
+    # i_freq indexes the flow with more frequent bursts or smaller burst size in
+    #  case of a tie
+    # i_rare indexes the other flow
+    if (ti(i,j,1) != ti(i,j,2))
+      [~, i_freq] = min(ti(i,j,:));
+    else
+      [~, i_freq] = min(beta(:,j));
     endif
-    output(++i_event,:) = [t, q(1), q(2), 0, i_head-1];
-  else
-    # Burst arrives
-    if (q(i_head) > 0)
-      # Drain head queue since last event
-      q(i_head) -= t_burst_next - t;  # resulting q(i_head) will be positive
-    endif
-    t = t_burst_next;
-##    if (t > t_max(i,j))
-##      break
-##    endif
-    output(++i_event,:) = [t, q(1), q(2), 0, i_head-1];
-    # Add burst to tail
-    q(i_burst_next) += beta(i_burst_next,j);    
-    output(++i_event,:) = [t, q(1), q(2), 0, i_head-1];
-    # Set t_burst for next burst from this flow
-    t_burst(i_burst_next) += ti(i,j,i_burst_next);
-    if (q(i_head) == 0)
-      # Queue of head flow emptied, just as burst in other flow arrived
-      i_head = i_burst_next;
-    endif
-  endif
+    i_rare = !(i_freq-1) + 1;
+    
+    # As long as utilization < 100% and bursts are evenly spaced, there cannot 
+    #  be >1 sequence of packets from each flow in the queue at once.
+    # So a vector of 2 q sizes and a 2-state integer 'i_head' indexing the flow
+    #  at the head are sufficient to fully describe the queue at any one time
+    
+    p = zeros(phis,2,2);    # Marking prob for each flow & each approach 
+    # For each phi, the 2x2 matrix of p is accumulated as time is scanned, 
+    #  then normalized once t_max is reached 
+    #          [ a , b ]
+    #  _    _   _     _ 
+    # |  1   | |       |_
+    # |  .   | |       | |
+    # |  .   | |       | |
+    # | phi  | |       | |
+    # |  .   | |       | |
+    # |  .   | | p_s   | |
+    # |_phis_| |_     _| |
+    #            |_p_e  _|
+    #
+    
+    # k : index of phi
+    for k = i_phi
+      clear output;
+    
+      # Variable definitions
+      #  t :            current time
+      #  i_head :       which flow is at the head of the queue
+      #  t_burst[2] : start time of next burst from each flow
+      #  i_next_burst : which burst is next
+      
+      # Define the origin (t=0 & q=0) at the point when the combined queue is 
+      #  shortest assuming no standing queue, given utilization <= 100%
+      # Time is scanned in two passes:
+      # 1) to find the max phase shift betw bursts, where the q will be shortest
+      # 2) to derive the actual queue process
+      
+      # #1 time scan
+      # Rare bursts are scanned to find the max phase shift back to the last  
+      #  freq burst that could still be draining. Then, if this duration is:
+      #  * <= the freq burst, set origin at this freq burst;
+      #  * > the freq burst, but < freq interval, set origin at the rare burst.
+      #  Then t_burst(i_rare) should be set to the max phase shift, t_delta_max.
+      # Otherwise (if no rare burst could arrive at a non-empty queue), the 
+      #  origin can be set at the start of any rare burst, so use the first.
+      # In each case, i_head is pointed to the flow that bursts at the origin
+      #  and t_burst[2], the time until the next burst for each flow, is set.
+      t = 0;
+      c = 0;                                   # rare burst counter
+      # Phase shift is from the freq burst before a rare burst to that rare 
+      #  burst
+      t_delta0 = ti(i,j,i_freq) * phi(k)/phis; # initial phase shift
+      t_delta_max = 0;                   # max 'overlapping' phase shift so far
+      # Set defaults for case where t=0, q=0 at the start of a rare burst
+      i_head = i_rare;
+      t_burst(i_rare) = 0;
+      t_burst(i_freq) = ti(i,j,i_freq) - t_delta0;
+      while (t <= t_max(i,j))
+        # Temporarily shift t=0 back to freq burst before the first rare burst
+        t = t_delta0 + c * ti(i,j,i_rare);     # time of each rare burst
+        t_delta = rem(t, ti(i,j,i_freq));      # phase shift at each rare burst
+        if ( (t_delta > t_delta_max) && (t_delta < ti(i,j,i_freq)) )
+          t_delta_max = t_delta;
+        endif
+        c++;
+      endwhile
+      clear c;
+      if (t_delta_max > 0)
+        if (t_delta_max <= beta(i_freq,j))
+          # queue empty at start of first freq burst
+          i_head = i_freq;
+          t_burst(i_freq) = 0;
+          t_burst(i_rare) = t_delta_max;
+        else
+          # queue empty at start of first rare burst
+          t_burst(i_freq) = ti(i,j,i_freq) - t_delta_max;
+        endif
+      endif
+      # Calc arrival time and flow id of next burst
+      [t_next_burst, i_next_burst] = min(t_burst);
+      # If there's a tie, point i_next_burst to the index of the smaller burst
+      #  (otherwise min() points i_next_burst to the lower index)
+      if (t_burst(1) == t_burst(2))
+        [~, i_next_burst] = min(beta(:,j));
+      endif
+      
+      # #2 time scan
+      t = 0;
+      i_event = 0;        # Event index
+      q = zeros(2,1);     # queue delay contributed by each flow
+      ott = 0;            # whether combined queue is over the threshold (q>=1)
+      #
+      # The output matrix is filled as time is scanned:
+      #  * output(:,1) : time of next event; 
+      #  * output(:,2:3) : resulting per flow queue contribution at that time; 
+      #  * output(:,4) : which flow is at the head of the q; 0:1 means q(1:2);
+      #  * output(:,5) : whether queue is above threshold (q>=1) after t.
+      while (t <= t_max(i,j))
+      
+        # The contributions from each flow to the queue are piecewise linear
+        #  between 'events', where an 'event' is a discontinuity in one of the
+        #  contributions or when the queue crosses the marking threshold
+        # 
+        t_next_empty = t + q(i_head); # Time the head q will next empty
+        q_xs = sum(q) - 1;            # Excess q above threshold (could be -ve)
+        # Check whether combined q falls below threshold 
+        #  before head q empties or burst arrives
+        if ( (q_xs > 0) && ...
+             ( ((t_next_empty <= t_next_burst) && (q_xs <= q(i_head))) || ...
+               ((t_next_empty > t_next_burst) && (q_xs <= t_next_burst - t)) ...
+             ) ...
+           )
+            # Combined queue has fallen below threshold before any other event
+            t += q_xs;
+            if (t > t_max(i,j))
+              break
+            endif
+            # Add to p_e
+            p(k, i_head, 2) += q_xs;
+            q(i_head) -= q_xs;
+            if (qt_mode)
+              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+            endif
+            ott = 0;
+            # The earlier condition (q_xs <= t_next_burst - t) could have been
+            #  changed to < to suppress the following output in the case when it
+            #  seems redundant when q drains exactly to the threshold just
+            #  before a burst. But, for robustness, if (q==1) ott=0, even if q
+            #  is about to increase again.
+            if (qt_mode)
+              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+            endif
+        else
+          if ((q(i_head) > 0) && (t_next_empty <= t_next_burst))
+            # q(i_head) has emptied (defer any simultaneous burst to next event)
+            t = t_next_empty;
+            if (t > t_max(i,j))
+              break
+            endif
+            if (ott)
+              # Altho head flow has emptied, tail is over threshold
+              #  so add time since previous event to p_e
+              p(k, i_head, 2) += q(i_head);
+            endif
+            q(i_head) = 0;
+            # Point i_head to other flow's queue if it's non-negative
+            i_other = !(i_head-1) + 1;
+            if (q(i_other) > 0)
+              if (qt_mode)
+                output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              endif
+              i_head = i_other;
+            endif
+            if (qt_mode)
+              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+            endif
+          else
+            # Burst has arrived
+            if (q(i_head) > 0)
+              # Drain head queue since last event
+              q(i_head) -= t_next_burst - t;  # resulting q(i_head) will be >0
+              if (ott)
+                # Add to p_e
+                p(k, i_head, 2) += t_next_burst - t;
+              endif
+              q_xs = sum(q) - 1;
+            endif
+            t = t_next_burst;
+            if (t > t_max(i,j))
+              break
+            endif
+            if (qt_mode)
+              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+            endif
+            # Add burst to tail
+            #  but first check whether combined queue rises above threshold
+            delta_q = beta(i_next_burst,j);
+            if ( (ott == 0) && (q_xs + beta(i_next_burst,j) > 0) )
+              q(i_next_burst) -= q_xs;
+              delta_q += q_xs;
+              if (qt_mode)
+                output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              endif
+              ott = 1;
+            endif
+            q(i_next_burst) += delta_q;
+            if (ott)
+              # Add to p_s
+              p(k, i_next_burst, 1) += delta_q;
+            endif
+            if (qt_mode)
+              output(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+            endif
+            
+            # Prepare for next burst
+            # Set t_burst for next burst from this flow
+            t_burst(i_next_burst) += ti(i,j,i_next_burst);
+            if (q(i_head) == 0)
+              # Queue of head flow emptied, just as burst in other flow arrived
+              i_head = i_next_burst;
+            endif
+            # Calc arrival time and flow id of next burst, handling tie if nec.
+            [t_next_burst, i_next_burst] = min(t_burst);
+            if (t_burst(1) == t_burst(2))
+              [~, i_next_burst] = min(beta(:,j));
+            endif
+          endif    
+        endif
+      
+      endwhile
+    endfor
+    
+    p .*= lambdas/t_max(i,j);
+    # In solely the following line, the abbreviated assignment operator (./=) 
+    #  can't be used, because it errors within a script, 
+    #  even though it is fine when run manually.
+    p = p ./ cast(lambda(i,:),"double");
+    # Append in the last 2 rows the mean & std-dev of the other rows
+    
+    # p_stats(i,j,flow-id,approach,statistic), where
+    # i       : index of lambda
+    # j       : index of beta
+    # flow-id : 1,2 = flow a,b
+    # approach : 1,2 = soj,est
+    # statistic : 1,2 = mean,std-dev
+    p_stats(i,j,:,:,1) = mean(p(1:phis,:,:));
+    p_stats(i,j,:,:,2) = std(p(1:phis,:,:),1);
 
-endwhile
-# ToDo: endfor
+  endfor
+endfor
+
+if (qt_mode)
+  savefile = [savepre, "_output_", savemid, ... 
+              "_i", num2str(i_lambda), ...
+              "_j", num2str(i_beta), ...
+              "_k", num2str(i_phi), ...
+              savesuf];
+  save("-binary", [savefile ".bin"], "savefile", "output");
+else
+  savefile = [savepre, "_p_stats_", savemid, savesuf];
+  save("-binary", [savefile ".bin"], "savefile", "lambdaSum", "lambdas", "betaSum", "betas", "beta", "p_stats");
+endif
+
