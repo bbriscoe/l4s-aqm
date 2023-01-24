@@ -33,18 +33,18 @@ endif
 # lambda, beta & phi are held as integers 
 #  with implicit denominators lambdas, betas & phis, resp.
 #  (except after setup, when beta is cast to double and downscaled), 
-lambdas = 16;		# no. of steps of capacity share, lambda
-betas = 32;		# no. of steps of normalized burst delay, beta
-phis = 4;		# no. of steps of phase shift, phi, in 360deg
+lambdas = 16;		# no. of divisions of capacity share, lambda, if lambdaSum=1
+betas = 400;		# no. of divisions of normalized burst delay, beta, if betaSum=1
+phis = 4;		# no. of divisions of phase shift, phi, in 360deg
 smidgen = 0.123456789;  # To avoid unrealistic degree of exact phase lock
 
 
 # set qt_mode to true(1) to produce one time series of the queue
 # set qt_mode to false(1) to scan parameter space and produce marking statistics
-qt_mode = false(1);
+qt_mode = true(1);
 if (qt_mode)
-  i_lambda = 6; # index of lambda to plot if in qt_mode
-  i_beta = 15;  # index of beta   to plot if in qt_mode
+  i_lambda = 3; # index of lambda to plot if in qt_mode
+  i_beta = 84;  # index of beta   to plot if in qt_mode
   i_phi = 4;    # index of phi    to plot if in qt_mode
   if (i_lambda < 1 || i_lambda > lambdas)
     error("capacity share index parameter 'i_lambda' outside valid range");
@@ -58,8 +58,9 @@ if (qt_mode)
 endif
 
 savepre = [mfilename()];
-savemid = ["lambdaSum", num2str(lambdaSum*100), ...
-              "_betaSum", num2str(betaSum*100), "_betas", num2str(betas)];
+savem1 = ["Σλ", num2str(lambdaSum), ...
+              "_Σβ", num2str(betaSum)];
+savem2 = ["_β", num2str(betas)];
 savesuf = ["_", strftime("%Y%m%d-%H%M%S", localtime (time ()))];
 
 # Upscale primary parameters to integers
@@ -427,14 +428,14 @@ if (qt_mode)
            qt_out(:,3) .*  (qt_out(:,4) .*  qt_out(:,5)), ...
            qt_out(:,2) .*   qt_out(:,4), ...
            qt_out(:,4:5)];
-  savefile = [savepre, "_qt_out_", savemid, ... 
-              "_i", num2str(i_lambda), ...
-              "_j", num2str(i_beta), ...
-              "_k", num2str(i_phi), ...
+  savefile = [savepre, "_qt_out_", savem1, ...
+              "_", num2str(i_lambda), "λ", num2str(lambdas), ...
+              "_", num2str(i_beta), "β", num2str(betas),...
+              "_", num2str(i_phi), "φ", num2str(phis), ...
               savesuf];
   save("-binary", [data_dir savefile ".bin"], "savefile", "qt_out");
 else
-  savefile = [savepre, "_p_stats_", savemid, savesuf];
+  savefile = [savepre, "_p_stats_", savem1, savem2, savesuf];
   save("-binary", [data_dir savefile ".bin"], "savefile", ...
        "lambdaSum", "lambdas", "betaSum", "betas", "beta", "p_stats");
 endif
@@ -495,7 +496,8 @@ endif
 ## # Strings
 ## savefile
 ## savepre
-## savemid
+## savem1
+## savem2
 ## savesuf
 ## ============================================================================
 
