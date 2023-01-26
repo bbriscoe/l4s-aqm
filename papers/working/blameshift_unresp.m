@@ -14,9 +14,9 @@
 
 ## ToDo:
 ## * Check whether code completes properly at each t_max limit
-##   - scan #1 & #2
 ##   - q = 0 prior to last event (investigate bug-causes of non-zero cases)
 ##   - qt_mode plot cases where q!=0 at t_max
+##   - scan #1 & #2
 ## * Output table of values of p on qt_mode plots
 ## * Understand why 
 ##   - p_e dips between the two main discontinuities where one burst = 1
@@ -255,7 +255,7 @@ for i = i_lambda
       t = 0;
       q = zeros(2,1);     # queue delay contributed by each flow
       ott = 0;            # whether combined queue is over the threshold (q>=1)
-      (qt_mode) && i_event = 0;      # Event index
+      (qt_mode) && (i_event = 0);      # Event index
       #
       # The qt_out matrix is filled as time is scanned:
       #  * qt_out(:,1) : time of next event; 
