@@ -13,17 +13,19 @@
 #    GNU General Public License for more details.
 
 ## ToDo:
-## * Write parameterized plot_stats script
-## * Check whether code completes properly at each t_max limit (scan #1 & #2)
+## * Check whether code completes properly at each t_max limit
+##   - scan #1 & #2
+##   - q = 0 prior to last event (investigate bug-causes of non-zero cases)
+##   - qt_mode plot cases where q!=0 at t_max
+## * Output table of values of p on qt_mode plots
 ## * Understand why 
-##   - p_e dips between the two discontinuities
-##   - qt_mode: plot at and either side of discontinuities 
+##   - p_e dips between the two main discontinuities where one burst = 1
 ## * Tidy code into functions before publication
 
 clear
 
 # Primary parameters
-lambdaSum = 1;		# Utilization
+lambdaSum = 3/4;		# Utilization
 betaSum = 5/4;	# Max combined normalized burst delay (wrt marking threshold)
 if (lambdaSum > 1)
   error("utilization parameter 'lambdaSum' cannot exceed 100%");
@@ -34,27 +36,18 @@ endif
 #  with implicit denominators lambdas, betas & phis, resp.
 #  (except after setup, when beta is cast to double and downscaled), 
 lambdas = 16;		# no. of divisions of capacity share, lambda, if lambdaSum=1
-betas = 400;		# no. of divisions of normalized burst delay, beta, if betaSum=1
+betas = 32;		# no. of divisions of normalized burst delay, beta, if betaSum=1
 phis = 4;		# no. of divisions of phase shift, phi, in 360deg
 smidgen = 0.123456789;  # To avoid unrealistic degree of exact phase lock
 
 
 # set qt_mode to true(1) to produce one time series of the queue
 # set qt_mode to false(1) to scan parameter space and produce marking statistics
-qt_mode = true(1);
+qt_mode = false(1);
 if (qt_mode)
-  i_lambda = 3; # index of lambda to plot if in qt_mode
-  i_beta = 84;  # index of beta   to plot if in qt_mode
+  i_lambda = 11; # index of lambda to plot if in qt_mode
+  i_beta = 39;  # index of beta   to plot if in qt_mode
   i_phi = 4;    # index of phi    to plot if in qt_mode
-  if (i_lambda < 1 || i_lambda > lambdas)
-    error("capacity share index parameter 'i_lambda' outside valid range");
-  endif
-  if (i_beta < 1 || i_beta > betas)
-    error("burst size index parameter 'i_beta' outside valid range");
-  endif
-  if (i_phi < 1 || i_phi > phis)
-    error("burst size index parameter 'i_phi' outside valid range");
-  endif
 endif
 
 savepre = [mfilename()];
@@ -68,6 +61,17 @@ lambdaSum *= lambdas;
 betaSum *= betas;
 lambdaSum = cast(lambdaSum, "uint16");
 betaSum = cast(betaSum, "uint16");
+if (qt_mode)
+  if (i_lambda < 1 || i_lambda > lambdaSum-1)
+    error("capacity share index parameter 'i_lambda' outside valid range");
+  endif
+  if (i_beta < 1 || i_beta > betaSum-1)
+    error("burst size index parameter 'i_beta' outside valid range");
+  endif
+  if (i_phi < 1 || i_phi > phis)
+    error("burst size index parameter 'i_phi' outside valid range");
+  endif
+endif
 
 # Fill vectors for scanning the problem space
 # Two flows, a&b are represented by slices 1&2
@@ -186,7 +190,9 @@ for i = i_lambda
     # k : index of phi
     for k = i_phi
       clear qt_out;
-    
+      ## Debug; ToDo: Remove once fixed
+      i_bug = 0;
+      
       # Variable definitions
       #  t :            current time
       #  i_head :       which flow is at the head of the queue
@@ -247,9 +253,9 @@ for i = i_lambda
       
       # #2 time scan
       t = 0;
-      i_event = 0;        # Event index
       q = zeros(2,1);     # queue delay contributed by each flow
       ott = 0;            # whether combined queue is over the threshold (q>=1)
+      (qt_mode) && i_event = 0;      # Event index
       #
       # The qt_out matrix is filled as time is scanned:
       #  * qt_out(:,1) : time of next event; 
@@ -279,26 +285,20 @@ for i = i_lambda
           # Add to p_e
           p(k, i_head, 2) += q_xs;
           q(i_head) -= q_xs;
-          if (qt_mode)
-            qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-          endif
+          (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
           ott = 0;
           # The earlier condition (q_xs <= t_next_burst - t) could have been
           #  changed to < to suppress the following qt_out in the case when it
           #  seems redundant when q drains exactly to the threshold just
           #  before a burst. But, for robustness, if (q==1) ott=0, even if q
           #  is about to increase again.
-          if (qt_mode)
-            qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-          endif
+          (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
           # Special case of q(i_head) emptying just as tail crosses threshold
           if (t >= t_next_empty)
             # Point i_head to other flow's queue if it's non-negative
             i_other = !(i_head-1) + 1;
             if (q(i_other) > 0)
-              if (qt_mode)
-                qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-              endif
+              (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
               i_head = i_other;
               # No need to update i_other - not read elsewhere
             endif
@@ -319,15 +319,14 @@ for i = i_lambda
             # Point i_head to other flow's queue if it's non-negative
             i_other = !(i_head-1) + 1;
             if (q(i_other) > 0)
-              if (qt_mode)
-                qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-              endif
+              (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
               i_head = i_other;
               # No need to update i_other - not read elsewhere
+            else
+              # Both q's empty
+              i_head = i_next_burst;
             endif
-            if (qt_mode)
-              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-            endif
+            (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
           else
             # Burst has arrived
             if (q(i_head) > 0)
@@ -343,9 +342,7 @@ for i = i_lambda
             if (t > t_max(i,j))
               break
             endif
-            if (qt_mode)
-              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-            endif
+            (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
             # Add burst to tail
             #  but first check whether combined queue rises above threshold
             delta_q = beta(i_next_burst,j);
@@ -354,9 +351,7 @@ for i = i_lambda
               #  after q incremented as below, q_xs = (sum(q) - 1) == 0;
               q(i_next_burst) -= q_xs;
               delta_q += q_xs;
-              if (qt_mode)
-                qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-              endif
+              (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
               ott = 1;
             endif
             q(i_next_burst) += delta_q;
@@ -364,17 +359,10 @@ for i = i_lambda
               # Add to p_s
               p(k, i_next_burst, 1) += delta_q;
             endif
-            if (qt_mode)
-              qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
-            endif
-            
+            (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
             # Prepare for next burst
             # Set t_burst for next burst from this flow
             t_burst(i_next_burst) += ti(i,j,i_next_burst);
-            if (q(i_head) == 0)
-              # Queue of head flow emptied, just as burst in other flow arrived
-              i_head = i_next_burst;
-            endif
             # Calc arrival time and flow id of next burst, handling tie if nec.
             [t_next_burst, i_next_burst] = min(t_burst);
             if (t_burst(1) == t_burst(2))
@@ -382,8 +370,11 @@ for i = i_lambda
             endif
           endif    
         endif
-      
       endwhile
+      # Debug: End of each time series; ToDo: Remove once fixed
+      if (sum(q) > 0)
+        qt_bug(++i_bug,:) = [t, q(1), q(2), i_head-1, t_max(i,j), i, j, k];
+      endif
     endfor
     
     p .*= lambdas/t_max(i,j);
@@ -391,16 +382,17 @@ for i = i_lambda
     #  can't be used, because it errors within a script, 
     #  even though it is fine when run manually.
     p = p ./ cast(lambda(i,:),"double");
-    # Append in the last 2 rows the mean & std-dev of the other rows
     
-    # p_stats(i,j,flow-id,approach,statistic), where
-    # i       : index of lambda
-    # j       : index of beta
-    # flow-id : 1,2 = flow a,b
-    # approach : 1,2 = soj,est
-    # statistic : 1,2 = mean,std-dev
-    p_stats(i,j,:,:,1) = mean(p(1:phis,:,:));
-    p_stats(i,j,:,:,2) = std(p(1:phis,:,:),1);
+    if (!qt_mode)
+      # p_stats(i,j,flow-id,approach,statistic), where
+      # i       : index of lambda
+      # j       : index of beta
+      # flow-id : 1,2 = flow a,b
+      # approach : 1,2 = soj,est
+      # statistic : 1,2 = mean,std-dev
+      p_stats(i,j,:,:,1) = mean(p(1:phis,:,:));
+      p_stats(i,j,:,:,2) = std(p(1:phis,:,:),1);
+    endif
 
   endfor
 endfor
