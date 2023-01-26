@@ -25,7 +25,7 @@
 clear
 
 # Primary parameters
-lambdaSum = 3/4;		# Utilization
+lambdaSum = 1;		# Utilization
 betaSum = 5/4;	# Max combined normalized burst delay (wrt marking threshold)
 if (lambdaSum > 1)
   error("utilization parameter 'lambdaSum' cannot exceed 100%");
@@ -36,8 +36,8 @@ endif
 #  with implicit denominators lambdas, betas & phis, resp.
 #  (except after setup, when beta is cast to double and downscaled), 
 lambdas = 16;		# no. of divisions of capacity share, lambda, if lambdaSum=1
-betas = 32;		# no. of divisions of normalized burst delay, beta, if betaSum=1
-phis = 4;		# no. of divisions of phase shift, phi, in 360deg
+betas = 64;		# no. of divisions of normalized burst delay, beta, if betaSum=1
+phis = 8;		# no. of divisions of phase shift, phi, in 360deg
 smidgen = 0.123456789;  # To avoid unrealistic degree of exact phase lock
 
 
@@ -255,7 +255,7 @@ for (i = i_lambda)
       t = 0;
       q = zeros(2,1);     # queue delay contributed by each flow
       ott = 0;            # whether combined queue is over the threshold (q>=1)
-      (qt_mode) && (i_event = 0);      # Event index
+      qt_mode && (i_event = 0);      # Event index
       #
       # The qt_out matrix is filled as time is scanned:
       #  * qt_out(:,1) : time of next event; 
@@ -285,20 +285,20 @@ for (i = i_lambda)
           # Add to p_e
           p(k, i_head, 2) += q_xs;
           q(i_head) -= q_xs;
-          (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+          qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
           ott = 0;
           # The earlier condition (q_xs <= t_next_burst - t) could have been
           #  changed to < to suppress the following qt_out in the case when it
           #  seems redundant when q drains exactly to the threshold just
           #  before a burst. But, for robustness, if (q==1) ott=0, even if q
           #  is about to increase again.
-          (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+          qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
           # Special case of q(i_head) emptying just as tail crosses threshold
           if (t >= t_next_empty)
             # Point i_head to other flow's queue if it's non-negative
             i_other = !(i_head-1) + 1;
             if (q(i_other) > 0)
-              (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
               i_head = i_other;
               # No need to update i_other - not read elsewhere
             endif
@@ -319,14 +319,14 @@ for (i = i_lambda)
             # Point i_head to other flow's queue if it's non-negative
             i_other = !(i_head-1) + 1;
             if (q(i_other) > 0)
-              (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
               i_head = i_other;
               # No need to update i_other - not read elsewhere
             else
               # Both q's empty
               i_head = i_next_burst;
             endif
-            (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+            qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
           else
             # Burst has arrived
             if (q(i_head) > 0)
@@ -342,7 +342,7 @@ for (i = i_lambda)
             if (t > t_max(i,j))
               break
             endif
-            (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+            qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
             # Add burst to tail
             #  but first check whether combined queue rises above threshold
             delta_q = beta(i_next_burst,j);
@@ -351,7 +351,7 @@ for (i = i_lambda)
               #  after q incremented as below, q_xs = (sum(q) - 1) == 0;
               q(i_next_burst) -= q_xs;
               delta_q += q_xs;
-              (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+              qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
               ott = 1;
             endif
             q(i_next_burst) += delta_q;
@@ -359,7 +359,7 @@ for (i = i_lambda)
               # Add to p_s
               p(k, i_next_burst, 1) += delta_q;
             endif
-            (qt_mode) && qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott];
+            qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
             # Prepare for next burst
             # Set t_burst for next burst from this flow
             t_burst(i_next_burst) += ti(i,j,i_next_burst);
