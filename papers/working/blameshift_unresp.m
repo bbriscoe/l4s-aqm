@@ -149,11 +149,11 @@ if (!qt_mode)
   i_phi = 1 : phis;
 endif
 
-for i = i_lambda
+for (i = i_lambda)
   if (!qt_mode)
     printf("%d%%\n", double(i)/double(lambdaSum)*100);
   endif
-  for j = i_beta
+  for (j = i_beta)
     if (!qt_mode)
       printf(".");
       ##printf("%d,", j);
@@ -188,7 +188,7 @@ for i = i_lambda
     #
     
     # k : index of phi
-    for k = i_phi
+    for (k = i_phi)
       clear qt_out;
       ## Debug; ToDo: Remove once fixed
       i_bug = 0;
