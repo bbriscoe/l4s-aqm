@@ -49,8 +49,8 @@ set(h_yl, 'fontname', 'Times New Roman', 'fontsize', 20)
 set(h_leg, 'location', 'northeastoutside', ...
     'fontname', 'Times New Roman', 'fontsize', 14)
 set(gca, "outerposition", [0 0 1 1])
-savefile = strrep(savefile, "_p_stats", "_p_s");
-print([savefile ".pdf"]);
+printfile = strrep(savefile, "_p_stats", "_p_s");
+print([printfile ".pdf"]);
 
 # Plot p_e
 figure(2)
@@ -80,5 +80,5 @@ set(h_yl, 'fontname', 'Times New Roman', 'fontsize', 20);
 set(h_leg, 'location', 'northeastoutside', ...
     'fontname', 'Times New Roman', 'fontsize', 14)
 set(gca, "outerposition", [0 0 1 1])
-savefile = strrep(savefile, "_p_s", "_p_e");
-print([savefile ".pdf"]);
+printfile = strrep(savefile, "_p_stats", "_p_e");
+print([printfile ".pdf"]);
