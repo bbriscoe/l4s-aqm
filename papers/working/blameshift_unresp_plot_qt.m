@@ -41,4 +41,4 @@ else
   h_leg = legend("q_a  ", "", "q_b  ", "location", "northeastoutside");
 endif
 set(h_leg, 'fontname', 'Times New Roman', 'fontsize', 14)
-print([data_dir savefile ".pdf"]);
+print([savefile ".pdf"]);

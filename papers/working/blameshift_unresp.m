@@ -13,14 +13,7 @@
 #    GNU General Public License for more details.
 
 ## ToDo:
-## * 86% of runs are ending with q>0
-##   - new approach: add a 2nd pass through the while loop
-##     starting after the longest empty period found in the 1st while loop
-##     Still use the same 1st pass to find the minphase shift, as best approx
-## * Check whether code completes properly at each t_max limit
-##   - q = 0 prior to last event (investigate bug-causes of non-zero cases)
-##   - qt_mode plot cases where q!=0 at t_max
-##   - scan #1 & #2
+## * Increment t_burst along a vector, not by incremental addition
 ## * Output table of values of p on qt_mode plots
 ## * Understand why 
 ##   - p_e dips between the two main discontinuities where one burst = 1
@@ -162,7 +155,6 @@ for (i = i_lambda)
   for (j = i_beta)
     if (!qt_mode)
       printf(".");
-      ##printf("%d,", j);
     endif
     # i_freq indexes the flow with more frequent bursts (or smaller burst size in
     #  case of a tie)
@@ -243,7 +235,6 @@ for (i = i_lambda)
       t_delta(5,:) = t_delta(4,:) + beta(i_freq,j) - t_delta(1,:) * double(lambdaSum) / lambdas;
       [t_delta_min4, i_4] = min(t_delta(4,:));
       [t_delta_min5, i_5] = min(t_delta(5,:));
-      ## t_delta_min = min(t_delta);
       # Whether q=0 at the start or end of the min phase shift from freq to rare
       #  depends on whether the freq burst is large enough to keep the queue 
       #  busy over t_delta_min.
@@ -263,14 +254,10 @@ for (i = i_lambda)
       else
         # q=0 at rare burst after min phase shift
         t_burst(i_rare) = 0;
-        t_burst(i_freq) = ti(i,j,i_freq) - t_delta(1,i_5); ## ToDo: >= 0?
+        t_burst(i_freq) = ti(i,j,i_freq) - t_delta(1,i_5); # >= 0
         i_next_burst = i_head = i_rare;
       endif
       t_next_burst = 0;
-## ToDo: Remove
-##      clear t_delta;
-##      clear t_delta_min4;
-##      clear t_delta_min5;
       
       # #2 time scan
       t = 0;
@@ -300,9 +287,6 @@ for (i = i_lambda)
            )
           # Combined queue has fallen below threshold before any other event
           t += q_xs;
-##          if (t > t_max(i,j))
-##            break
-##          endif
           # Add to p_e
           p(k, i_head, 2) += q_xs;
           q(i_head) -= q_xs;
@@ -328,9 +312,6 @@ for (i = i_lambda)
           if ((q(i_head) > 0) && (t_next_empty <= t_next_burst))
             # q(i_head) has emptied (defer any simultaneous burst to next event)
             t = t_next_empty;
-##            if (t > t_max(i,j))
-##              break
-##            endif
             if (ott)
               # Altho head flow has emptied, tail is over threshold
               #  so add time since previous event to p_e
@@ -360,9 +341,6 @@ for (i = i_lambda)
               q_xs = sum(q) - 1;
             endif
             t = t_next_burst;
-##            if (t > t_max(i,j))
-##              break
-##            endif
             qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
             ## ToDo: more elegantly, increment t to pre-determined matrix
             if (t >= t_max(i,j) - 8*eps(t_max(1,j)))
@@ -446,15 +424,15 @@ if (qt_mode)
            qt_out(:,3) .*  (qt_out(:,4) .*  qt_out(:,5)), ...
            qt_out(:,2) .*   qt_out(:,4), ...
            qt_out(:,4:5)];
-  savefile = [savepre, "_qt_out_", savem1, ...
+  savefile = [data_dir savepre, "_qt_out_", savem1, ...
               "_", num2str(i_lambda), "λ", num2str(lambdas), ...
               "_", num2str(i_beta), "β", num2str(betas),...
               "_", num2str(i_phi), "φ", num2str(phis), ...
               savesuf];
-  save("-binary", [data_dir savefile ".bin"], "savefile", "qt_out");
+  save("-binary", [savefile ".bin"], "savefile", "qt_out");
 else
-  savefile = [savepre, "_p_stats_", savem1, savem2, savesuf];
-  save("-binary", [data_dir savefile ".bin"], "savefile", ...
+  savefile = [data_dir savepre, "_p_stats_", savem1, savem2, savesuf];
+  save("-binary", [savefile ".bin"], "savefile", ...
        "lambdaSum", "lambdas", "betaSum", "betas", "beta", "p_stats");
 endif
 
