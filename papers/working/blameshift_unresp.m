@@ -13,7 +13,6 @@
 #    GNU General Public License for more details.
 
 ## ToDo:
-## * Increment t_burst along a vector, not by incremental addition
 ## * Output table of values of p on qt_mode plots
 ## * Understand why 
 ##   - p_e dips between the two main discontinuities where one burst = 1
@@ -196,59 +195,69 @@ for (i = i_lambda)
       #  i_bnxt : which burst is next
       
       # Time is scanned in two passes:
-      # 1) to find where the q will be shortest
-      # 2) to derive the actual queue process
-      # Define the origin (t=0 & q=0) at the point when the combined queue is 
-      #  shortest, assuming no standing queue, given utilization <= 100%
+      # 1) to find where the q will be shortest (using only matrix ops)
+      # 2) to derive the queue process event-by-event in a while loop
       
       # #1 time scan
-      # q cannot be shorter than that after the max phase shift betw different
-      #  bursts of different flows
-      # Reason: In a cycle of duration t_max before the arrival pattern repeats,
-      #  wherever is chosen as t=0 the same total amount of load arrives.
-      #  So q will be shortest after the longest spread of arrivals.
-      #  That is from a rare burst to the freq burst that is the shortest phase
-      #  shift before the next rare burst.
-      # Only rare bursts need to be scanned to find the min phase shift back to 
-      #  the prev freq burst, 'cos the max phase shift has to be between bursts 
-      #  of different types.
-      t = 0;
-      c = 0;                                   # rare burst counter
-      # 'Seed' the initial phase shift using fraction phi of the freq interval
-      t_delta0 = ti(i,j,i_freq) * (phi(k)+smidgen)/phis; # start at a freq burst
+      # Set the origin (t=0 & q=0) where the combined queue will be shortest, 
+      #  assuming utilization <= 100%, and assuming a model queue that starts 
+      #  full enough to never empty, draining it at the avg arrival rate so that
+      #  the pattern of burst arrivals maintains a standing q.
+##      # q cannot be shorter than that after the max phase shift betw different
+##      #  bursts of different flows
+##      # Reason: In a cycle of duration t_max before the arrival pattern repeats,
+##      #  wherever is chosen as t=0 the same total amount of load arrives.
+##      #  So q will be shortest after the longest spread of arrivals.
+##      #  That is from a rare burst to the freq burst that is the shortest phase
+##      #  shift before the next rare burst.
+      # Only rare bursts and the freq bursts just before them ('pre-rare') 
+      #  need to be scanned, because the q at the start of any other freq burst 
+      #  will be greater.
+      # 0) Pick any phase difference to be the first between a pre-rare freq 
+      #    burst and the subsequent rare burst
+      # 0) 'Seed' the initial phase shift using fraction phi of freq interval
+      t_delta0 = ti(i,j,i_freq) * (phi(k)+smidgen)/phis;
       # Vector of rare burst times
-      t_delta = t_delta0 : ti(i,j,i_rare) : t_max(i,j);
-      # Replace with vector of phase shifts from previous freq burst
-      t_delta = rem(t_delta, ti(i,j,i_freq));
-      ## ToDo: Try this
-      # Assume a standing queue drained at the average arrival rate.
-      # Create vector of no. of freq bursts betw each rare burst. 
-      # Calc the vector of changes in the queue betw each freq burst just before
-      #  each rare burst.
-      # Convert this to a running sum.
-      ## ToDo: add extra steps here
-      # Check whether the min is at the freq or the next rare.
-      t_delta(2,:) = ceil((ti(i,j,i_rare) - t_delta(1,:)) / ti(i,j,i_freq));
-      drain_freq = ti(i,j,i_freq) * double(lambdaSum) / lambdas;  # drain in a freq interval
-      t_delta(3,:) = beta(i_rare,j) + t_delta(2,:) .* (beta(i_freq,j) - drain_freq);
-      t_delta(4,:) = cumsum(t_delta(3,:));
-      t_delta(5,:) = t_delta(4,:) + beta(i_freq,j) - t_delta(1,:) * double(lambdaSum) / lambdas;
-      [t_delta_min4, i_4] = min(t_delta(4,:));
-      [t_delta_min5, i_5] = min(t_delta(5,:));
+      t_rare = t_delta0 : ti(i,j,i_rare) : t_max(i,j);
+      # 1) Create vector t_rare of each phase shift from each pre-rare to rare
+      #    burst
+      t_rare = rem(t_rare, ti(i,j,i_freq));
+      # 2) Create vector q_rare of the no. (say n) of freq bursts from each pre-
+      #    rare burst to the next pre-rare burst. 
+      q_rare = ceil((ti(i,j,i_rare) - t_rare) / ti(i,j,i_freq));
+      # 3) Then the change in the queue from each pre-rare burst to the next can 
+      #    be calculated as: 
+      #    1*rare burst + n*(freq burst - drain per freq interval)
+      #    This will give a sequence of -ve and +ve changes that sum to zero
+      drain_freq = ti(i,j,i_freq) * double(lambdaSum) / lambdas;
+      q_rare = beta(i_rare,j) + q_rare .* (beta(i_freq,j) - drain_freq);
+      # 4) Convert these to a cumulative sum. 
+      #    This will give the queue at the start of each pre-rare burst relative
+      #    to the q at the start. 
+      #    The min of these is candidate #1 for the location of the origin.
+      q_rare = cumsum(q_rare);
+      # 5) Then the queue at the start of each rare burst can be derived by 
+      #    adding the (pre-rare) freq burst and subtracting the drain rate over
+      #    the phase shift still stored in in t_rare.
+      #    The min of these is candidate #2 for the location of the origin.
+      q_rare(2,:) = q_rare + beta(i_freq,j) - t_rare * double(lambdaSum)/lambdas;
+      # Find the mins of both vectors, and the indeces of their locations
+      [qr_min, i_qr_min] = min(q_rare,[],2);
+## Got to here
       # Whether q=0 at the start or end of the min phase shift from freq to rare
       #  depends on whether the freq burst is large enough to keep the queue 
       #  busy over t_delta_min.
       # In each case, i_bnxt and i_head are pointed to the flow that 
       #  bursts at the origin and the time until the next burst for each flow, 
       #  t_burst[2], is set.
-      if (t_delta_min4 < t_delta_min5)
+      if (qr_min(1) < qr_min(2))
         ## ToDo: Try using ranges
         # q=0 at freq burst before min phase shift
         t_burst{i_freq} = 0 : ti(i,j,i_freq) : t_max(i,j);
-        t_burst{i_rare} = t_delta(1,i_4) : ti(i,j,i_rare) : t_max(i,j) ...
-                          + t_delta(1,i_4); # Past t_max to prevent overflow
+        t_burst{i_rare} = t_rare(i_qr_min(1)) : ti(i,j,i_rare) : t_max(i,j) ...
+                        + t_rare(i_qr_min(1)); # Past t_max to prevent overflow
 ##        t_burst(i_freq) = 0;
-##        t_burst(i_rare) = t_delta(1,i_4);
+##        t_burst(i_rare) = t_rare(1,i_1);
         if (t_burst{i_rare}(1) > 0)
           i_head = i_freq;
         else
@@ -259,11 +268,11 @@ for (i = i_lambda)
         ## ToDo: Try using ranges
         # q=0 at rare burst after min phase shift
         t_burst{i_rare} = 0 : ti(i,j,i_rare) : t_max(i,j);
-        t_burst{i_freq} = ti(i,j,i_freq) - t_delta(1,i_5) ... # >= 0
+        t_burst{i_freq} = ti(i,j,i_freq) - t_rare(i_qr_min(2)) ... # >= 0
                              : ti(i,j,i_freq) : t_max(i,j) ...
-             + ti(i,j,i_freq) - t_delta(1,i_5); # Past t_max to prevent overflow
+             + ti(i,j,i_freq) - t_rare(i_qr_min(2)); # Past t_max to prevent overflow
 ##        t_burst(i_rare) = 0;
-##        t_burst(i_freq) = ti(i,j,i_freq) - t_delta(1,i_5); # >= 0
+##        t_burst(i_freq) = ti(i,j,i_freq) - t_rare(1,i_2); # >= 0
         i_head = i_rare;
       endif
       i_bnxt = i_head;
@@ -491,15 +500,17 @@ endif
 ## i_head
 ## i_other
 ## i_bnxt
+## i_qr_min         [2]
 ##
 ## # Time intervals
 ## t
 ## t_delta0
-## t_delta          [1, nnn]
-## t_delta_min
+## t_rare           [1, nnn]
+## q_rare           [2, nnn]
+## qr_min           [2]
 ## ti               [lambdaSum-1, betaSum-1,      2 ]
 ## t_max            [lambdaSum-1, betaSum-1 ]
-## t_burst          [2  ]
+## t_burst          {2  }
 ## t_next_burst
 ## t_next_empty
 ##
