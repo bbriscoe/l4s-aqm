@@ -47,11 +47,25 @@ if (qt_mode)
   i_phi = 1;    # index of phi    to plot if in qt_mode
 endif
 
-savepre = [mfilename()];
-savem1 = ["Σλ", num2str(lambdaSum), ...
-              "_Σβ", num2str(betaSum)];
-savem2 = ["_β", num2str(betas)];
 savesuf = ["_", strftime("%Y%m%d-%H%M%S", localtime (time ()))];
+savedir = "";
+if (exist("octave_data", "dir"))
+  savedir = "octave_data/";
+endif
+if (qt_mode)
+  savefile = [savedir mfilename(), "_qt_out_", ...
+              "Σλ", num2str(lambdaSum), "_Σβ", num2str(betaSum), ...
+              "_", num2str(i_lambda), "λ", num2str(lambdas), ...
+              "_", num2str(i_beta), "β", num2str(betas),...
+              "_", num2str(i_phi), "φ", num2str(phis), ...
+              savesuf];
+else
+  savefile = [savedir mfilename(), "_p_stats_", ...
+              "Σλ", num2str(lambdaSum), "_Σβ", num2str(betaSum), ...
+              "_β", num2str(betas), ...
+              savesuf];
+endif
+clear savedir savesuf;
 
 # Upscale primary parameters to integers
 lambdaSum *= lambdas;
@@ -152,8 +166,8 @@ for (i = i_lambda)
     if (!qt_mode)
       printf(".");
     endif
-    # i_freq indexes the flow with more frequent bursts (or smaller burst size in
-    #  case of a tie)
+    # i_freq indexes the flow with more frequent bursts (or smaller burst size
+    #  in case of a tie)
     if (ti(i,j,1) != ti(i,j,2))
       [~, i_freq] = min(ti(i,j,:));
     else
@@ -230,7 +244,7 @@ for (i = i_lambda)
       #    adding the (pre-rare) freq burst and subtracting the drain rate over
       #    the phase shift still stored in in t_rare.
       #    The min of these is candidate #2 for the location of the origin.
-      q_rare(2,:) = q_rare + beta(i_freq,j) - t_rare * double(lambdaSum)/lambdas;
+      q_rare(2,:)= q_rare + beta(i_freq,j) - t_rare * double(lambdaSum)/lambdas;
       # Find the mins of both vectors, and the indices of their locations
       [qr_min, i_qr_min] = min(q_rare,[],2);
       #
@@ -244,7 +258,7 @@ for (i = i_lambda)
         # t=0, q=0 at start of freq burst
         t_burst{i_freq} = 0 : ti(i,j,i_freq) : t_max(i,j);
         t_burst{i_rare} = t_rare(i_qr_min(1)) : ti(i,j,i_rare) : t_max(i,j) ...
-                        + t_rare(i_qr_min(1)); # Past t_max to prevent overflow
+                        + t_rare(i_qr_min(1)); # just for limit test
         if (t_burst{i_rare}(1) > 0)
           i_head = i_freq;
         else
@@ -256,7 +270,7 @@ for (i = i_lambda)
         t_burst{i_rare} = 0 : ti(i,j,i_rare) : t_max(i,j);
         t_burst{i_freq} = ti(i,j,i_freq) - t_rare(i_qr_min(2)) ... # >= 0
                              : ti(i,j,i_freq) : t_max(i,j) ...
-             + ti(i,j,i_freq) - t_rare(i_qr_min(2)); # Past t_max to prevent overflow
+             + ti(i,j,i_freq) - t_rare(i_qr_min(2)); # just for limit test
         i_head = i_rare;
       endif
       i_bNxt = i_head;
@@ -268,23 +282,23 @@ for (i = i_lambda)
       # Initialize and define variables
       t = 0;              # current time
       q = zeros(2,1);     # queue delay contributed by each flow
-      ott = 0;            # whether combined queue is over the threshold (q>=1)
+      ott = 0;            # whether combined queue is over the threshold (q>1)
       qt_mode && (i_event = 0);      # Event index
       #
-      # The qt_out matrix is filled as time is scanned:
+      # The qt_out matrix is extended a row at a time, as time is scanned:
       #  * qt_out(:,1) : time of next event; 
       #  * qt_out(:,2:3) : resulting per flow queue contribution at that time; 
       #  * qt_out(:,4) : which flow is at the head of the q; 0:1 means q(1:2);
       #  * qt_out(:,5) : whether queue is above threshold (q>=1) after t.
-      while (t < t_max(i,j))
+      while (t < t_max(i,j))  # redundant 'cos break always preempts
         # The contributions from each flow to the queue are piecewise linear
         #  between 'events', where an 'event' is a discontinuity in one of the
         #  contributions or when the queue crosses the marking threshold
         # 
         t_emptyNxt = t + q(i_head); # Time the head q will next empty
-        q_xs = sum(q) - 1;            # Excess q above threshold (could be -ve)
+        q_xs = sum(q) - 1;          # Excess q above threshold (can be -ve)
 
-        # Define t_burstNxt for readability & brevity, but take care! it is not a 
+        # Define t_burstNxt for readability & brevity, but take care! it's not a
         #  macro; it uses the values of i_bNxt and i_tb now, not when it is used
         t_burstNxt = t_burst{i_bNxt}(i_tb(i_bNxt)); # time of next burst
         # Check whether combined q falls below threshold 
@@ -307,7 +321,7 @@ for (i = i_lambda)
           #  before a burst. But, for robustness, if (q==1) ott=0, even if q
           #  is about to increase again.
           qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
-          # Special case of q(i_head) emptying just as tail crosses threshold
+          # Check for q(i_head) emptying just as tail crosses threshold
           if (t >= t_emptyNxt)
             # Point i_head to other flow's queue if it's non-negative
             i_other = !(i_head-1) + 1;
@@ -351,22 +365,21 @@ for (i = i_lambda)
             endif
             t = t_burstNxt;
             qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
-            ## ToDo: more elegantly, increment t to pre-determined matrix
-##            if (i_tb(i_bNxt) >= size(t_burst{i_bNxt},2))
             # The precision of t is 1 eps 'cos it is assigned from a range.
             # However, an octave bug loses another eps when within a script
             # The alternative of testing for the end of the vector led to very
             #  complex code
             if (t >= t_max(i,j) - 2*eps(t))
-##            if (t >= t_max(i,j) - 8*eps(t_max(1,j)))
               break
             endif
             # Add burst to tail
             #  but first check whether combined queue rises above threshold
             delta_q = beta(i_bNxt,j);
             if ( (ott == 0) && (q_xs + beta(i_bNxt,j) > 0) )
-              # Take care! if (q_xs + beta == tiny), e.g tiny = 1.1102e-16
-              #  after q incremented as below, q_xs = (sum(q) - 1) == 0;
+              # Care! if (q_xs + beta == tiny) (e.g tiny = eps()), after q is
+              #  incremented below, the tiny value disappears and q_xs =
+              #  (sum(q) - 1) == 0.
+              #  So subsequently, we test the result (ott), not q_xs again.
               q(i_bNxt) -= q_xs;
               delta_q += q_xs;
               qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
@@ -379,23 +392,14 @@ for (i = i_lambda)
             endif
             qt_mode && (qt_out(++i_event,:) = [t, q(1), q(2), i_head-1, ott]);
             # Prepare for next burst
-            # Set t_burst for next burst from this flow
-            ## ToDo: increment a pointer along a range for precision
-##            if (i_tb(i_bNxt) >= size(t_burst{i_bNxt},2))
-            # Earlier size test prevents overflow here
-##              # Reached end of one flow's bursts without reaching t_max
-##              #  Force the next burst index to point to the other flow
-##              i_bNxt = !(i_bNxt-1) + 1;
-##            else
+            # This flow's burst is complete, so set t_burstNxt for the same flow
+            # Earlier break prevents overflow here
             i_tb(i_bNxt)++;
-##            t_burst(i_bNxt) += ti(i,j,i_bNxt);
             # Calc arrival time and flow id of next burst, handling tie if nec.
             [~, i_bNxt] = min([t_burst{1}(i_tb(1)), t_burst{2}(i_tb(2))]);
-##            [t_next_burst, i_bNxt] = min(t_burst);
             if (t_burst{1}(i_tb(1)) == t_burst{2}(i_tb(2)))
               [~, i_bNxt] = min(beta(:,j));
             endif
-##            endif
           endif    
         endif
       endwhile
@@ -406,7 +410,7 @@ for (i = i_lambda)
     
     p .*= lambdas/t_max(i,j);
     # In solely the following line, the abbreviated assignment operator (./=) 
-    #  can't be used, because it errors within a script, 
+    #  can't be used, because it errors within a script (octave v5.2.0),
     #  even though it is fine when run manually.
     p = p ./ cast(lambda(i,:),"double");
     
@@ -425,10 +429,6 @@ for (i = i_lambda)
   !qt_mode && (printf("%d%%\n", double(i)/double(lambdaSum)*100));
 endfor
 
-data_dir = "";
-if (exist("octave_data", "dir"))
-  data_dir = "octave_data/";
-endif
 if (qt_mode)
   # post-process qt_out matrix
   # To simplify plotting, split up flows into EST-marked and unmarked columns
@@ -448,14 +448,8 @@ if (qt_mode)
            qt_out(:,3) .*  (qt_out(:,4) .*  qt_out(:,5)), ...
            qt_out(:,2) .*   qt_out(:,4), ...
            qt_out(:,4:5)];
-  savefile = [data_dir savepre, "_qt_out_", savem1, ...
-              "_", num2str(i_lambda), "λ", num2str(lambdas), ...
-              "_", num2str(i_beta), "β", num2str(betas),...
-              "_", num2str(i_phi), "φ", num2str(phis), ...
-              savesuf];
   save("-binary", [savefile ".bin"], "savefile", "qt_out");
 else
-  savefile = [data_dir savepre, "_p_stats_", savem1, savem2, savesuf];
   save("-binary", [savefile ".bin"], "savefile", ...
        "lambdaSum", "lambdas", "betaSum", "betas", "beta", "p_stats");
 endif
@@ -469,6 +463,7 @@ endif
 ## beta             [2,           betaSum-1 ]
 ## phi              [phis        ]
 ## qt_mode          logical
+## debug_mode       logical
 ## 
 ## # Limits
 ## lambdaSum
@@ -491,13 +486,13 @@ endif
 ## i_other
 ## i_bNxt
 ## i_qr_min         [2]
+## i_tb             [2]
+## i_bug
 ##
 ## # Time intervals
 ## t
 ## t_delta0
 ## t_rare           [1, nnn]
-## q_rare           [2, nnn]
-## qr_min           [2]
 ## ti               [lambdaSum-1, betaSum-1,      2 ]
 ## t_max            [lambdaSum-1, betaSum-1 ]
 ## t_burst          {2  }
@@ -505,22 +500,24 @@ endif
 ## t_emptyNxt
 ##
 ## # Queue delays
+## drain_freq
+## q_rare           [2, nnn]
+## qr_min           [2]
 ## q_xs
 ## delta_q
 ##
 ## # Outputs
 ## q                [2  ]
 ## ott
-## qt_out           [mmm,         8]
+## qt_out           [mmm,         8]   ([mmm, 5] until post-processed)
+## qt_bug           [rrr,         8]
 ## p                [phis+1,      2,              2 ]
 ## p_stats          [lambdaSum-1, betaSum-1, 2, 2, 2]
 ##
 ## # Strings
-## savefile
-## savepre
-## savem1
-## savem2
+## savedir
 ## savesuf
+## savefile
 ## ============================================================================
 
 
