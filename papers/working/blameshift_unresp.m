@@ -261,7 +261,7 @@ for (i = i_lambda)
       endif
       i_bNxt = i_head;
       i_tb = ones(2,1);
-      !debug_mode && (clear 't_delta0', 't_rare', 'q_rare', 'drain_freq', ...
+      !debug_mode && clear('t_delta0', 't_rare', 'q_rare', 'drain_freq', ...
                             'qr_min', 'i_qr_min');
       
       # #2 time scan
