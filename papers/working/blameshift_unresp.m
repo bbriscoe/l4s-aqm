@@ -32,7 +32,7 @@ endif
 # lambda, beta & phi are held as integers 
 #  with implicit denominators lambdas, betas & phis, resp.
 #  (except after setup, when beta is cast to double and downscaled), 
-lambdas = 16;		# no. of divisions of capacity share, lambda, if lambdaSum=1
+lambdas = 10;		# no. of divisions of capacity share, lambda, if lambdaSum=1
 betas = 32;		# no. of divisions of normalized burst delay, beta, if betaSum=1
 phis = 4;		# no. of divisions of phase shift, phi, in 360deg
 smidgen = 0.123456789;  # To avoid unrealistic degree of exact phase lock
@@ -149,7 +149,7 @@ beta = double(beta) ./ betas;
 # p_stats(i,j,flow-id,approach,statistic), where
 # i       : index of lambda
 # j       : index of beta
-# flow-id : 1,2 = flow a,b
+# flow-id : 1,2 = flow a,(a-b)
 # approach : 1,2 = soj,est
 # statistic : 1,2 = mean,std-dev
 p_stats = zeros(lambdaSum-1,betaSum-1,2,2,2);
@@ -408,21 +408,27 @@ for (i = i_lambda)
       endif
     endfor
     
-    p .*= lambdas/t_max(i,j);
-    # In solely the following line, the abbreviated assignment operator (./=) 
-    #  can't be used, because it errors within a script (octave v5.2.0),
-    #  even though it is fine when run manually.
-    p = p ./ cast(lambda(i,:),"double");
+    # Add another dimension: p[phis,2,2,2], such that
+    # 1) phase shift,    1 : phis
+    # 2) flow,           a, b
+    # 3) approach,       soj, est
+    # 4) marking metric, p (marking prob), λp (normalized marking rate)
+    p(:,:,:,2) = p .* lambdas/t_max(i,j);
+    p(:,:,:,1) = p(:,:,:,2) ./ cast(lambda(i,:),"double");
     
     if (!qt_mode)
-      # p_stats(i,j,flow-id,approach,statistic), where
+      # p_stats(i,j,flow-id,approach,metric,statistic), where
       # i       : index of lambda
       # j       : index of beta
-      # flow-id : 1,2 = flow a,b
-      # approach : 1,2 = soj,est
+      # flow-id : 1,2 = flow a,(a-b)
+      # approach: 1,2 = soj,est
+      # metric  : 1,2 = p, λp
       # statistic : 1,2 = mean,std-dev
-      p_stats(i,j,:,:,1) = mean(p(1:phis,:,:));
-      p_stats(i,j,:,:,2) = std(p(1:phis,:,:),1);
+      p_stats(i,j,1,:,:,1) = mean(p(1:phis,1,:,:));
+      p_stats(i,j,1,:,:,2) =  std(p(1:phis,1,:,:),1);
+      # (p_a - p_b) replaces flow b's column
+      p_stats(i,j,2,:,:,1) = mean(p(1:phis,1,:,:)-p(1:phis,2,:,:));
+      p_stats(i,j,2,:,:,2) =  std(p(1:phis,1,:,:)-p(1:phis,2,:,:),1);
     endif
 
   endfor

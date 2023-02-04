@@ -4,8 +4,6 @@
 #
 # Called manually after blameshift_unresp.m run in non-qt_mode
 
-# ToDo: Work out why sojourn plot is smaller within the window
-
 set(0, "defaultlinelinewidth", 1.5);
 ## ToDo: The following are in ~/.octaverc but don't seem to affect the title or xlabel, ylabel
 ##set(0, "defaulttextfontsize", 18);
@@ -21,64 +19,97 @@ colours = [0.6, 0.6, 0.6;     # light grey
            0  , 0  , 0  ];    # black
 slS = cast(lambdaSum, "int16");
 
-# Plot p_s
-figure(1)
-for n = 1 : lambdaSum-1
-  i_style = mod(n-slS,3)+1;
-  ltag = strcat("p_{sa}: λ_a=^{", num2str(n), "}/_{", num2str(lambdas), "}");
-  plot(beta(1,:), p_stats(n,:,1,1,1), 
-       "DisplayName", ltag, ...
-       "linestyle", linestyles{i_style}, ...
-       "linewidth", linewidths(i_style), ...
-       "color", colours(floor((n-1)/3)+1,:) );
-  hold on;
-endfor
-hold off;
-axis([0 double(betaSum)/betas 0 1.04]);
-h_tit = title(["Sojourn marking of two unresponsive flows, a & b\n" ...
-       "Capacity fractions, λ_a & λ_b;   Utilization, Σλ = " ...
-       num2str(double(lambdaSum)/lambdas*100) "%;   " ...
-       "Burst sizes β_a & β_b, where Σβ = " num2str(double(betaSum)/betas*100) ...
-       "% of marking threshold"]);
-h_xl = xlabel(["Normalized burst size of flow a,  β_a"]);
-h_yl = ylabel("Sojourn-based marking probability of flow a, p_{sa}\n\n");
-h_leg = legend();
-set(h_tit, 'fontname', 'Times New Roman', 'fontsize', 20)
-set(h_xl, 'fontname', 'Times New Roman', 'fontsize', 20)
-set(h_yl, 'fontname', 'Times New Roman', 'fontsize', 20)
-set(h_leg, 'location', 'northeastoutside', ...
-    'fontname', 'Times New Roman', 'fontsize', 14)
-set(gca, "outerposition", [0 0 1 1])
-printfile = strrep(savefile, "_p_stats", "_p_s");
-print([printfile ".pdf"]);
+# Option processing
+# plot options
+# option{1,1} flow:      1 = p_a;     2 = Δp = p_a - p_b
+# option{1,2} approach:  1 = sojourn; 2 = EST
+# option{1,3} metric:    1 = p;       2 = λp
+# option{1,4} statistic: 1 = mean;    2 = mean & std. dev
+option = {1:2, 1:2, 1:2, 1};
 
-# Plot p_e
-figure(2)
-for n = 1 : lambdaSum-1
-  i_style = mod(n-slS,3)+1;
-  ltag = strcat("p_{ea}: λ_a=^{", num2str(n), "}/_{", num2str(lambdas), "}");
-  plot(beta(1,:), p_stats(n,:,1,2,1), 
-       "DisplayName", ltag, ...
-       "linestyle", linestyles{i_style}, ...
-       "linewidth", linewidths(i_style), ...
-       "color", colours(floor((n-1)/3)+1,:) );
-  hold on;
+for statistic = option{1,4}
+  for metric = option{1,3}
+    for flow = option{1,1}
+      for approach = option{1,2}
+        ## 1 var_tag = "p_{sa}";
+        ## 2 var_tag = "p_{ea}";
+        ## 3 var_tag = "Δp_{s}";
+        ## 4 var_tag = "Δp_{e}";
+        ## 5 var_tag = "λ_ap_{sa}";
+        ## 6 var_tag = "λp_{ea}";
+        ## 7 var_tag = "Δ(λp_{s})";
+        ## 8 var_tag = "Δ(λp_{e})";
+        fig = 4*(metric-1)+2*(flow-1)+(approach-1) + 1
+        if (approach == 1)
+          appr_tag = "s";
+          if (flow == 1)
+            ylab_tag = tit_tag = "Sojourn marking";
+          else
+            tit_tag = "Diff. betw. sojourn markings";
+            ylab_tag = "Diff. betw. sojourn marking probabilities";
+          endif
+        else
+          appr_tag = "e";
+          if (flow == 1)
+            tit_tag = "Expected Service Time (EST) marking";
+            ylab_tag = "EST-based marking probability";
+          else
+            ylab_tag = tit_tag = "Diff. betw. EST marking probabilities";
+          endif
+        endif
+        if (flow == 1) 
+          delt_tag = del_tag = "";
+          flow_tag = "a}";
+          lylim = 0;
+        else
+          delt_tag = del_tag = "Δ";
+          flow_tag = "}";
+          if (metric == 2)
+            delt_tag = [del_tag "("];
+            flow_tag = [flow_tag ")"];
+          endif
+          lylim = -1.04;
+        endif
+        if (metric == 1)
+          lam_tag = "";
+        else
+          lam_tag = "λ";
+          # ToDo: tit_tag & ylab_tag: change "probability" to "normalized rate" or plurals.
+        endif
+        file_tag = ["_" del_tag lam_tag "p_" appr_tag];
+        var_tag = [delt_tag lam_tag "p_{" appr_tag flow_tag];
+
+        # Plot loop
+        figure(fig)
+        for n = 1 : lambdaSum-1
+          i_style = mod(n-slS,3)+1;
+          ltag = strcat(var_tag, ": λ_a=^{", num2str(n), "}/_{", num2str(lambdas), "}");
+          plot(beta(1,:), p_stats(n,:,flow,approach,metric,statistic), 
+               "DisplayName", ltag, ...
+               "linestyle", linestyles{i_style}, ...
+               "linewidth", linewidths(i_style), ...
+               "color", colours(floor((n-1)/3)+1,:) );
+          hold on;
+        endfor
+        hold off;
+        axis([0 double(betaSum)/betas lylim 1.04]);
+        h_tit = title([tit_tag " of two unresponsive flows, a & b\n" ...
+               "Capacity fractions, λ_a & λ_b;   Utilization, Σλ = " ...
+               num2str(double(lambdaSum)/lambdas*100) "%;   " ...
+               "Burst sizes β_a & β_b, where Σβ = " num2str(double(betaSum)/betas*100) ...
+               "% of marking threshold"]);
+        h_xl = xlabel(["Normalized burst size of flow a,  β_a"]);
+        h_yl = ylabel([ylab_tag " of flow a, " var_tag "\n\n"]);
+        h_leg = legend();
+        set(h_tit, 'fontname', 'Times New Roman', 'fontsize', 20)
+        set(h_xl, 'fontname', 'Times New Roman', 'fontsize', 20)
+        set(h_yl, 'fontname', 'Times New Roman', 'fontsize', 20)
+        set(h_leg, 'location', 'northeastoutside', ...
+            'fontname', 'Times New Roman', 'fontsize', 14)
+        set(gca, "outerposition", [0 0 1 1])
+        printfile = strrep(savefile, "_p_stats", file_tag);
+        print([printfile ".pdf"]);
+      endfor
+    endfor
+  endfor
 endfor
-hold off;
-axis([0 double(betaSum)/betas 0 1.04]);
-h_tit = title(["Expected Service Time (EST) marking of two unresponsive flows, a & b\n" ...
-       "Capacity fractions, λ_a & λ_b;   Utilization, Σλ = " ...
-       num2str(double(lambdaSum)/lambdas*100) "%;   " ...
-       "Burst sizes β_a & β_b, where Σβ = " num2str(double(betaSum)/betas*100) ...
-       "% of marking threshold"]);
-h_xl = xlabel(["Normalized burst size of flow a,  β_a"]);
-h_yl = ylabel("EST-based marking probability of flow a,  p_{ea}\n\n");
-h_leg = legend();
-set(h_tit, 'fontname', 'Times New Roman', 'fontsize', 20);
-set(h_xl, 'fontname', 'Times New Roman', 'fontsize', 20);
-set(h_yl, 'fontname', 'Times New Roman', 'fontsize', 20);
-set(h_leg, 'location', 'northeastoutside', ...
-    'fontname', 'Times New Roman', 'fontsize', 14)
-set(gca, "outerposition", [0 0 1 1])
-printfile = strrep(savefile, "_p_stats", "_p_e");
-print([printfile ".pdf"]);
