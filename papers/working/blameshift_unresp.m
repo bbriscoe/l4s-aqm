@@ -151,8 +151,9 @@ beta = double(beta) ./ betas;
 # j       : index of beta
 # flow-id : 1,2 = flow a,(a-b)
 # approach : 1,2 = soj,est
-# statistic : 1,2 = mean,std-dev
-p_stats = zeros(lambdaSum-1,betaSum-1,2,2,2);
+# metric  : 1,2 = p,λp
+# statistic : 1,2,3 = mean,max,min
+p_stats = zeros(lambdaSum-1,betaSum-1,2,2,2,3);
 
 if (!qt_mode)
   i_lambda = 1 : lambdaSum - 1;
@@ -417,18 +418,18 @@ for (i = i_lambda)
     p(:,:,:,1) = p(:,:,:,2) ./ cast(lambda(i,:),"double");
     
     if (!qt_mode)
+      # (a - b) replaces b's column
+      p(:,2,:,:) = p(:,1,:,:)-p(:,2,:,:);
       # p_stats(i,j,flow-id,approach,metric,statistic), where
       # i       : index of lambda
       # j       : index of beta
       # flow-id : 1,2 = flow a,(a-b)
       # approach: 1,2 = soj,est
       # metric  : 1,2 = p, λp
-      # statistic : 1,2 = mean,std-dev
-      p_stats(i,j,1,:,:,1) = mean(p(1:phis,1,:,:));
-      p_stats(i,j,1,:,:,2) =  std(p(1:phis,1,:,:),1);
-      # (p_a - p_b) replaces flow b's column
-      p_stats(i,j,2,:,:,1) = mean(p(1:phis,1,:,:)-p(1:phis,2,:,:));
-      p_stats(i,j,2,:,:,2) =  std(p(1:phis,1,:,:)-p(1:phis,2,:,:),1);
+      # statistic : 1,2,3 = mean,max,min
+      p_stats(i,j,:,:,:,1) = mean(p(1:phis,:,:,:));
+      p_stats(i,j,:,:,:,2) =  max(p(1:phis,:,:,:));
+      p_stats(i,j,:,:,:,3) =  min(p(1:phis,:,:,:));
     endif
 
   endfor
@@ -518,7 +519,7 @@ endif
 ## qt_out           [mmm,         8]   ([mmm, 5] until post-processed)
 ## qt_bug           [rrr,         8]
 ## p                [phis+1,      2,              2 ]
-## p_stats          [lambdaSum-1, betaSum-1, 2, 2, 2]
+## p_stats          [lambdaSum-1, betaSum-1, 2, 2, 3]
 ##
 ## # Strings
 ## savedir
