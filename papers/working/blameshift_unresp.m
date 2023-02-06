@@ -32,7 +32,7 @@ endif
 # lambda, beta & phi are held as integers 
 #  with implicit denominators lambdas, betas & phis, resp.
 #  (except after setup, when beta is cast to double and downscaled), 
-lambdas = 10;		# no. of divisions of capacity share, lambda, if lambdaSum=1
+lambdas = 16;		# no. of divisions of capacity share, lambda, if lambdaSum=1
 betas = 32;		# no. of divisions of normalized burst delay, beta, if betaSum=1
 phis = 4;		# no. of divisions of phase shift, phi, in 360deg
 smidgen = 0.123456789;  # To avoid unrealistic degree of exact phase lock
@@ -414,8 +414,8 @@ for (i = i_lambda)
     # 2) flow,           a, b
     # 3) approach,       soj, est
     # 4) marking metric, p (marking prob), λp (normalized marking rate)
-    p(:,:,:,2) = p .* lambdas/t_max(i,j);
-    p(:,:,:,1) = p(:,:,:,2) ./ cast(lambda(i,:),"double");
+    p(:,:,:,2) = p ./t_max(i,j);
+    p(:,:,:,1) = p(:,:,:,2) ./ double(lambda(i,:))*lambdas;
     
     if (!qt_mode)
       # (a - b) replaces b's column

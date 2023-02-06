@@ -4,6 +4,15 @@
 #
 # Called manually after blameshift_unresp.m run in non-qt_mode
 
+# Option processing
+# plot options
+# option{1,1} flow:      1 = p_a;     2 = Δp = p_a - p_b
+# option{1,2} approach:  1 = sojourn; 2 = EST
+# option{1,3} metric:    1 = p;       2 = λp
+# option{1,4} statistic: 1 = mean;    2 = mean & max-min
+# Default: option = {1:2, 1:2, 1:2, 1};
+option = {1:2, 1:2, 1:2, 1};
+
 set(0, "defaultlinelinewidth", 1.5);
 ## ToDo: The following are in ~/.octaverc but don't seem to affect the title or xlabel, ylabel
 ##set(0, "defaulttextfontsize", 18);
@@ -11,27 +20,17 @@ set(0, "defaultlinelinewidth", 1.5);
 ##set(0, "defaultaxesfontsize", 18);
 
 linestyles = {":"; "--"; "-"};
-linewidths = [2.5; 1.5; 1.5];
+linewidths_s = [2.5 ; 1.5 ; 1.5 ]; # For on screen
+linewidths_p = [2.0; 1.0; 1.0]; # For print -dpdfcairo
 colours        = [0.6 , 0.6 , 0.6 ;     # light grey
-                  1   , 0   , 1   ;     # magenta
+                  1   , 0.2 , 1   ;     # magenta
                   0.2 , 0.2 , 1   ;     # blue
                   0.6 , 0   , 0.6 ;     # purple
                   0   , 0   , 0   ];    # black
-colours(:,:,2) = [0.95, 0.95, 0.95;     # light grey
-                  1   , 0.95, 1   ;     # magenta
-                  0.9 , 0.9 , 1   ;     # blue
-                  0.9 , 0.8 , 0.9 ;     # purple
-                  0.9 , 0.9 , 0.9 ];    # black
+# Creat map of brighter but related colours for shaded fill
+scale = 8;
+colours(:,:,2) = (colours(:,:,1)+scale)/(1+scale);
 slS = cast(lambdaSum, "int16");
-
-# Option processing
-# plot options
-# option{1,1} flow:      1 = p_a;     2 = Δp = p_a - p_b
-# option{1,2} approach:  1 = sojourn; 2 = EST
-# option{1,3} metric:    1 = p;       2 = λp
-# option{1,4} statistic: 1 = mean;    2 = mean & std. dev
-# Default: option = {1:2, 1:2, 1:2, 1};
-option = {1, 2, 1, 2};
 
 for statistic = option{1,4}
   for metric = option{1,3}
@@ -91,34 +90,42 @@ for statistic = option{1,4}
         endif
         file_tag = ["_" del_tag lam_tag "p_" appr_tag];
         var_tag = [delt_tag lam_tag "p_{" appr_tag flow_tag];
+        stag = "";
 
+        figure(fig, "paperunits", "centimeters", "paperposition", [0, 0, 27.25, 13.75])
         # Plot loop
-        figure(fig)
         for n = 1 : lambdaSum-1
           i_style = mod(n-slS,3)+1;
           ltag = strcat(var_tag, ": λ_a=^{", num2str(n), "}/_{", num2str(lambdas), "}");
           if (statistic == 2)
-            # Fill an area from max to min behind the mean plotted next
+            # Fill an area from max to min behind the subsequent plot of mean
+            stag = "_{min-max} ";
             fill([beta(1,:), fliplr(beta(1,:))], ...
                  [p_stats(n,:,flow,approach,metric,2), ...
                   fliplr(p_stats(n,:,flow,approach,metric,3))], ...
-                 colours(floor((n-1)/3)+1,:,2), "linestyle", "none");
+                 colours(floor((n-1)/3)+1,:,2), ...
+                 "DisplayName", [stag ltag], ...
+                 "linestyle", "none",...
+                 "facealpha", 0.5);
+            stag = "    _{mean} ";
             hold on;
           endif
-          plot(beta(1,:), p_stats(n,:,flow,approach,metric,1), ...
-               "DisplayName", ltag, ...
+          h_plot(n) = plot(beta(1,:), p_stats(n,:,flow,approach,metric,1), ...
+               "DisplayName", [stag ltag], ...
                "linestyle", linestyles{i_style}, ...
-               "linewidth", linewidths(i_style), ...
+               "linewidth", linewidths_p(i_style), ...
                "color", colours(floor((n-1)/3)+1,:,1) );
+               # ToDo: bug: when (LambdaSum-1) is not a multiple of 3
+               #  linestyles don't sync with line colours.
           hold on;
         endfor
         hold off;
         axis([0 double(betaSum)/betas lylim 1.04]);
-        h_tit = title([tit_tag " two unresponsive flows, a & b\n" ...
-               "Capacity fractions, λ_a & λ_b;   Utilization, Σλ = " ...
+        h_tit = title([tit_tag " two unresponsive flows, a \\& b\n" ...
+               "_{Capacity fractions, λ_a \\& λ_b : utilization, Σλ = " ...
                num2str(double(lambdaSum)/lambdas*100) "%;   " ...
-               "Burst sizes β_a & β_b, where Σβ = " num2str(double(betaSum)/betas*100) ...
-               "% of marking threshold"]);
+               "Burst sizes β_a \\& β_b : Σβ = " num2str(double(betaSum)/betas*100) ...
+               "% of marking threshold}"]);
         h_xl = xlabel(["Normalized burst size of flow a,  β_a"]);
         h_yl = ylabel([ylab_tag ylabm_tag ylabf_tag var_tag "\n\n"]);
         h_leg = legend();
@@ -129,7 +136,10 @@ for statistic = option{1,4}
             'fontname', 'Times New Roman', 'fontsize', 14)
         set(gca, "outerposition", [0 0 1 1])
         printfile = strrep(savefile, "_p_stats", file_tag);
-        print([printfile ".pdf"]);
+        print([printfile ".pdf"], '-dpdfcairo');
+        for n = 1 : lambdaSum-1
+          set(h_plot(n), "linewidth", linewidths_s(mod(n-slS,3)+1));
+        endfor
       endfor
     endfor
   endfor
