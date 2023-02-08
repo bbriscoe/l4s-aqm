@@ -1,6 +1,8 @@
 #! /bin/octave -qf
+# blameshift_unresp.m
 # Scan the blame-shifting problem space
-# Copyright (c) 2022-23 Bob Briscoe 
+
+# Copyright (c) 2022-23 Bob Briscoe <research@bobbriscoe.net>
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -12,10 +14,30 @@
 #    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 #    GNU General Public License for more details.
 
+# Usage:
+#  1. Edit primary and secondary parameters directly in this file and save.
+#  2. Run either from within octave as
+#       >> blameshift_unresp
+#     or from the command line as
+#       $ octave blameshift_unresp.m
+#  3. A binary (.bin) file of the results is saved at the end, in subdirectory
+#      octave_data if it exists, otherwise in the current directory.
+#  4. To plot output at any time, this saved binary can be loaded into octave:
+#      >> load <file.bin>
+#      But this is unnecessary if plotting is done immediately after running
+#      this script, while the output is still in memory.
+#     Then a second script must be run from octave, depending respectively on
+#      whether qt_mode was set to true(1) or false(1) in this script:
+#       >> blameshift_unresp_plot_qt
+#       >> blameshift_unresp_plot_stats
+#      See the source of each of these scripts for their usage.
+
+# Testing:
+#  octave 5.2.0 under Ubuntu 20.04 LTS
+#  octave 7.3.0 under Win 10
+# Not tested with MatLab
+
 ## ToDo:
-## * Output table of values of p on qt_mode plots
-## * Understand why 
-##   - p_e dips between the two main discontinuities where one burst = 1
 ## * Tidy code into functions before publication
 
 clear
@@ -36,11 +58,10 @@ lambdas = 16;		# no. of divisions of capacity share, lambda, if lambdaSum=1
 betas = 32;		# no. of divisions of normalized burst delay, beta, if betaSum=1
 phis = 4;		# no. of divisions of phase shift, phi, in 360deg
 smidgen = 0.123456789;  # To avoid unrealistic degree of exact phase lock
-
-
+#
 # set qt_mode to true(1) to produce one time series of the queue
 # set qt_mode to false(1) to scan parameter space and produce marking statistics
-qt_mode = false(1);
+qt_mode = true(1);
 if (qt_mode)
   i_lambda = 2; # index of lambda to plot if in qt_mode
   i_beta = 6;  # index of beta   to plot if in qt_mode
@@ -146,19 +167,11 @@ endif
 # Cast beta to FP and downscale
 beta = double(beta) ./ betas;
 
-# p_stats(i,j,flow-id,approach,statistic), where
-# i       : index of lambda
-# j       : index of beta
-# flow-id : 1,2 = flow a,(a-b)
-# approach : 1,2 = soj,est
-# metric  : 1,2 = p,λp
-# statistic : 1,2,3 = mean,max,min
-p_stats = zeros(lambdaSum-1,betaSum-1,2,2,2,3);
-
 if (!qt_mode)
   i_lambda = 1 : lambdaSum - 1;
   i_beta = 1 : betaSum - 1;
   i_phi = 1 : phis;
+  p_stats = zeros(lambdaSum-1,betaSum-1,2,2,2,3);
 endif
 
 debug_mode && (i_bug = 0);
@@ -180,26 +193,29 @@ for (i = i_lambda)
     #  be >1 sequence of packets from each flow in the queue at once.
     # So a vector of 2 q sizes and a 2-state integer 'i_head' indexing the flow
     #  at the head are sufficient to fully describe the queue at any one time
-    
-    p = zeros(phis,2,2);    # Marking prob for each flow & each approach 
-    # For each phi, the 2x2 matrix of p is accumulated as time is scanned, 
-    #  then normalized once t_max is reached 
-    #          [ a , b ]
-    #  _    _   _     _ 
-    # |  1   | |       |_
-    # |  .   | |       | |
-    # |  .   | |       | |
-    # | phi  | |       | |
-    # |  .   | |       | |
-    # |  .   | | p_s   | |
-    # |_phis_| |_     _| |
-    #            |_p_e  _|
-    #
+
+    # Marking prob, p, for each flow & each approach
+    if (!qt_mode)
+      # For each phi, the 2x2 matrix of p is accumulated as time is scanned,
+      #  then normalized once t_max is reached
+      #          [ a , b ]
+      #  _    _   _     _
+      # |  1   | |       |_
+      # |  .   | |       | |
+      # |  .   | |       | |
+      # | phi  | |       | |
+      # |  .   | |       | |
+      # |  .   | | p_s   | |
+      # |_phis_| |_     _| |
+      #            |_p_e  _|
+      #
+      p = zeros(phis,2,2);
+    else
+      p = zeros(1,2,2);
+    endif
     
     # k : index of phi
     for (k = i_phi)
-      clear qt_out;
-      
       # Variable definitions
       #  t :          current time
       #  i_head :     which flow is at the head of the queue
@@ -455,7 +471,7 @@ if (qt_mode)
            qt_out(:,3) .*  (qt_out(:,4) .*  qt_out(:,5)), ...
            qt_out(:,2) .*   qt_out(:,4), ...
            qt_out(:,4:5)];
-  save("-binary", [savefile ".bin"], "savefile", "qt_out");
+  save("-binary", [savefile ".bin"], "savefile", "qt_out", "p");
 else
   save("-binary", [savefile ".bin"], "savefile", ...
        "lambdaSum", "lambdas", "betaSum", "betas", "beta", "p_stats");

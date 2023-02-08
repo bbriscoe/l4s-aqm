@@ -1,8 +1,25 @@
 # blameshift_unresp_plot_stats.m
-# Plot marking probability of two unresponsive bursty flows to illustrate blame-shifting
-#  2 plots: sojourn-based and EST-based marking
+# Plot marking probability of two unresponsive bursty flows to illustrate blame-
+#  shifting.
+# Plots up to four marking metrics using sojourn-based and/or EST-based marking
+#  with and/or without max-min ranges, thus outputting up to 16 plots.
+
+# Copyright (c) 2022-23 Bob Briscoe <research@bobbriscoe.net>
 #
-# Called manually after blameshift_unresp.m run in non-qt_mode
+#    This program is free software; you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation; either version 2 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+
+# Usage:
+# 1. Edit the options line directly in this file and save.
+# 2. Run this script from octave after running blameshift_unresp.m with
+#     qt_mode off. See blameshift_unresp.m for details.
 
 # Option processing
 # plot options
@@ -11,10 +28,11 @@
 # option{1,3} metric:    1 = p;       2 = λp
 # option{1,4} statistic: 1 = mean;    2 = mean & max-min
 # Default: option = {1:2, 1:2, 1:2, 1};
-option = {1:2, 1:2, 1:2, 1};
+option = {1, 1, 1, 1};
 
 set(0, "defaultlinelinewidth", 1.5);
-## ToDo: The following are in ~/.octaverc but don't seem to affect the title or xlabel, ylabel
+## ToDo: The following are in ~/.octaverc but don't seem to affect the title or
+##  xlabel, ylabel
 ##set(0, "defaulttextfontsize", 18);
 ##set(0, "defaulttextfontname", "Times New Roman")
 ##set(0, "defaultaxesfontsize", 18);
@@ -27,7 +45,7 @@ colours        = [0.6 , 0.6 , 0.6 ;     # light grey
                   0.2 , 0.2 , 1   ;     # blue
                   0.6 , 0   , 0.6 ;     # purple
                   0   , 0   , 0   ];    # black
-# Creat map of brighter but related colours for shaded fill
+# Create map of brighter but related colours for shaded fill
 scale = 8;
 colours(:,:,2) = (colours(:,:,1)+scale)/(1+scale);
 slS = cast(lambdaSum, "int16");
@@ -92,11 +110,13 @@ for statistic = option{1,4}
         var_tag = [delt_tag lam_tag "p_{" appr_tag flow_tag];
         stag = "";
 
-        figure(fig, "paperunits", "centimeters", "paperposition", [0, 0, 27.25, 13.75])
+        figure(fig, "paperunits", "centimeters", "paperposition", ...
+                    [0, 0, 27.25, 13.75])
         # Plot loop
         for n = 1 : lambdaSum-1
           i_style = mod(n-slS,3)+1;
-          ltag = strcat(var_tag, ": λ_a=^{", num2str(n), "}/_{", num2str(lambdas), "}");
+          ltag = strcat(var_tag, ": λ_a=^{", num2str(n), "}/_{", ...
+          num2str(lambdas), "}");
           if (statistic == 2)
             # Fill an area from max to min behind the subsequent plot of mean
             stag = "_{min-max} ";
@@ -124,7 +144,8 @@ for statistic = option{1,4}
         h_tit = title([tit_tag " two unresponsive flows, a \\& b\n" ...
                "_{Capacity fractions, λ_a \\& λ_b : utilization, Σλ = " ...
                num2str(double(lambdaSum)/lambdas*100) "%;   " ...
-               "Burst sizes β_a \\& β_b : Σβ = " num2str(double(betaSum)/betas*100) ...
+               "Burst sizes β_a \\& β_b : Σβ = " ...
+               num2str(double(betaSum)/betas*100) ...
                "% of marking threshold}"]);
         h_xl = xlabel(["Normalized burst size of flow a,  β_a"]);
         h_yl = ylabel([ylab_tag ylabm_tag ylabf_tag var_tag "\n\n"]);
