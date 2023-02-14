@@ -67,9 +67,9 @@ for statistic = option{1,4}
           appr_tag = "s";
           tit_tag = "Sojourn marking with";
           if (flow == 1)
-            ylab_tag = "Sojourn marking";
+            ylab_tag = "Soj. marking";
           else
-            ylab_tag = "Diff. betw. sojourn marking";
+            ylab_tag = "Diff. betw. soj. marking";
           endif
         else
           appr_tag = "e";

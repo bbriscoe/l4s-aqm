@@ -28,8 +28,9 @@
 #      this script, while the output is still in memory.
 #     Then a second script must be run from octave, depending respectively on
 #      whether qt_mode was set to true(1) or false(1) in this script:
-#       >> blameshift_unresp_plot_qt
-#       >> blameshift_unresp_plot_stats
+#       >> blameshift_unresp_plot_qt      # time series plot
+#       >> blameshift_unresp_plot_stats   # 2-D plot of parameter space
+#       >> blameshift_unresp_mesh_stats   # 3-D plot of parameter space
 #      See the source of each of these scripts for their usage.
 
 # Testing:
@@ -63,7 +64,7 @@ smidgen = 0.123456789;  # To avoid unrealistic degree of exact phase lock
 # set qt_mode to false(1) to scan parameter space and produce marking statistics
 qt_mode = true(1);
 if (qt_mode)
-  i_lambda = 2; # index of lambda to plot if in qt_mode
+  i_lambda = 3; # index of lambda to plot if in qt_mode
   i_beta = 6;  # index of beta   to plot if in qt_mode
   i_phi = 1;    # index of phi    to plot if in qt_mode
 endif
