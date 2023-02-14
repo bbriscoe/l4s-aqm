@@ -10,7 +10,6 @@
 *.tar
 papers/sigqdyn_tr*.pdf
 papers/references/
-presents/
 papers/working/octave_data_buggedDELETEME/
 papers/working/octave_data/blameshift_unresp_qt_out*
 papers/working/octave_data/*.pdf
