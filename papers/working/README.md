@@ -7,7 +7,7 @@ with different burst amplitudes and different regular intervals between bursts.
 See the overview presentation of the results (below) for explanation and justification of the approach.
 
 ### Results
-* Overview: "[How to Apportion Blame for a Queue with Arrivals in Bursts](https://github.com/bbriscoe/l4s-aqm/blob/master/presents/sigqdyn-overview.pdf)"
+* Overview: "[How to Apportion Blame for a Queue with Arrivals in Bursts?](https://github.com/bbriscoe/l4s-aqm/blob/master/presents/sigqdyn-overview.pdf)"
 * Detailed results "Signalling Bursty Queue Delay; Expt 1.1" using one of a choice of four metrics:
   * marking probability of flow a, [_p<sub>a</sub>_](https://github.com/bbriscoe/l4s-aqm/blob/master/presents/sigqdyn-p-expt1_1.pdf)
   * difference between marking probabilities of flow a and b, [_Δp_](https://github.com/bbriscoe/l4s-aqm/blob/master/presents/sigqdyn-Δp-expt1_1.pdf)
@@ -16,7 +16,7 @@ See the overview presentation of the results (below) for explanation and justifi
 
 ### Usage
 To repeat the experiments:
- 1. Edit primary and secondary parameters directly in the file blameshift_unresp.m and save.
+ 1. Edit primary and secondary parameters directly in the file [`blameshift_unresp.m`](https://github.com/bbriscoe/l4s-aqm/blob/master/papers/working/blameshift_unresp.m) and save.
  2. Run either from within [octave](https://octave.org/) as<br>
       `>> blameshift_unresp`<br>
     or from the command line as<br>
