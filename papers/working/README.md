@@ -13,6 +13,9 @@ See the overview presentation of the results (below) for explanation and justifi
   * difference between marking probabilities of flow a and b, [_Δp_](https://github.com/bbriscoe/l4s-aqm/blob/master/presents/sigqdyn-Δp-expt1_1.pdf)
   * marking rate of flow a, [_λp<sub>a</sub>_](https://github.com/bbriscoe/l4s-aqm/blob/master/presents/sigqdyn-λp-expt1_1.pdf)
   * difference between marking rates of flow a and b, [_Δλp_](https://github.com/bbriscoe/l4s-aqm/blob/master/presents/sigqdyn-Δλp-expt1_1.pdf)
+* The technical report on this research: "Rapid Signalling of Queue Dynamics"<br>
+\[ [Latest work-in-progress version](https://github.com/bbriscoe/l4s-aqm/blob/master/papers/sigqdyn_tr.pdf) | [Latest published version](https://arxiv.org/abs/1904.07044) \]<br>
+(neither are necessarily as up to date as the Overview presentation above).
 
 ### Usage
 To repeat the experiments:
