@@ -8,7 +8,6 @@
 *.log
 *.out
 *.tar
-papers/sigqdyn_tr*.pdf
 papers/references/
 papers/working/octave_data_buggedDELETEME/
 papers/working/octave_data/blameshift_unresp_qt_out*
